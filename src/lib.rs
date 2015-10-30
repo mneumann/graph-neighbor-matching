@@ -10,16 +10,6 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 
-// The Hungarian algorithm minimizes the sum of weights. For us, a high-score
-// (1.0)
-// means high similarity and we want to avoid matching a low score (0.0). That's
-// why we reverse the value (1.0 - value).
-fn max_weight(x: f32) -> f32 {
-    assert!(x >= 0.0 && x <= 1.0);
-    // 1.0 - x
-    x
-}
-
 // n_i contains the neighborhood of i (either in or out neighbors, not both)
 // n_j contains the neighborhood of j (either in or out neighbors, not both)
 fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
@@ -34,13 +24,12 @@ fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
     // map indicies from 0..min(degree) to the node indices
     let mapidx = |(a, b)| (n_i[a], n_j[b]);
 
-
-    let mut w = WeightMatrix::from_fn(min_deg, |ab| max_weight(x[mapidx(ab)]));
+    let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
 
     let assignment = solve_assignment(&mut w);
     assert!(assignment.len() == min_deg);
 
-    let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + max_weight(x[mapidx(ab)]));
+    let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[mapidx(ab)]);
 
     return sum / max_deg as f32;
 }
@@ -96,10 +85,6 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
     let mut new_x: DMat<f32> = DMat::new_zeros(na, nb);
 
     loop {
-        println!("---------------------------------");
-        println!("iter: {}", iter);
-        println!("mat: {:?}", x);
-        println!("---------------------------------");
         if x.approx_eq_eps(&new_x, &eps) || iter >= stop_after_iter {
             break;
         }
@@ -121,39 +106,22 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
                                eps: f32,
                                stop_after_iter: usize)
                                -> (usize, f32) {
-    let (na, nb) = (in_a.len(), in_b.len());
-    assert!((na, nb) == (out_a.len(), out_b.len()));
 
-    let (iter, mat) = if na >= nb {
-        neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter)
-    } else {
-        // reverse graph a and b.
-        neighbor_matching_matrix(in_b, in_a, out_b, out_a, eps, stop_after_iter)
-    };
 
-    assert!(mat.nrows() >= mat.ncols());
-
-    let n = cmp::min(mat.nrows(), mat.ncols());
-    // let m = mat.nrows();
-
-    let mut w = WeightMatrix::from_fn(n, |(i, j)| {
-        // let weight = if j >= m { 0.0 }
-        //             else { mat[(i,j)] };
-
-        let weight = mat[(i, j)];
-        max_weight(weight)
-    });
+    let (iter, x) = neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter);
+    let n = cmp::min(x.nrows(), x.ncols());
+    if n == 0 {
+        return (iter, 0.0);
+    }
+    let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
 
     let assignment = solve_assignment(&mut w);
-    // assert!(assignment.len() == m);
     assert!(assignment.len() == n);
 
-    let mut score = 0.0;
-    for &(i, j) in &assignment[0..n] {
-        score += mat[(i, j)];
-    }
+    let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
+    let score = score / n as f32;
 
-    (iter, score / n as f32)
+    (iter, score)
 }
 
 #[test]
@@ -177,8 +145,21 @@ fn test_matrix() {
     assert_eq!(1.0, mat[(0, 1)]);
     assert_eq!(1.0, mat[(1, 0)]);
     assert_eq!(1.0, mat[(1, 1)]);
-    assert!(false);
 }
+
+#[test]
+fn test_matrix_iter1() {
+    let in_a = vec![vec![0, 0, 0]];
+    let out_a = vec![vec![0, 0, 0]];
+
+    let in_b = vec![vec![0, 0, 0, 0, 0]];
+    let out_b = vec![vec![0, 0, 0, 0, 0]];
+
+    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 1);
+    assert_eq!(iter, 1);
+    assert_eq!(3.0 / 5.0, mat[(0, 0)]);
+}
+
 
 #[test]
 fn test_score() {
@@ -191,10 +172,8 @@ fn test_score() {
     let out_b = vec![vec![], vec![0]];
 
     let (iter, score) = neighbor_matching_score(&in_a, &in_b, &out_a, &out_b, 0.1, 100);
-    println!("{}", score);
     assert_eq!(iter, 1);
 
     // The score is 1.0 <=> A and B are isomorphic
     assert_eq!(1.0, score);
-    assert!(false);
 }
