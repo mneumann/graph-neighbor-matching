@@ -1,0 +1,17 @@
+[package]
+name = "graph-neighbor-matching"
+version = "0.0.1"
+authors = ["Michael Neumann <mneumann@ntecs.de>"]
+license = "MIT"
+repository = "https://github.com/mneumann/graph-neighbor-matching"
+description = "Graph similarity score using neighbor matching"
+keywords = ["graph", "algorithm", "similarity"]
+
+[dependencies.munkres]
+git = "https://github.com/mneumann/munkres-rs.git"
+
+[dependencies]
+nalgebra = "*"
+
+[dev-dependencies]
+petgraph = "*"
