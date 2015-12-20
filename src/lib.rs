@@ -99,124 +99,169 @@ fn next_x<F>(x: &DMat<f32>,
     }
 }
 
-#[inline]
-/// Calculates the similarity matrix for two graphs A and B.
-///
-/// `in_a`:  Incoming edge list for each node of graph A
-/// `in_b`:  Incoming edge list for each node of graph B
-/// `out_a`: Outgoing edge list for each node of graph A
-/// `out_b`: Outgoing edge list for each node of graph B
-/// `eps`:   When to stop the iteration
-/// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
-///
-/// Returns (number of iterations, similarity matrix `x`)
-pub fn neighbor_matching_matrix<F>(in_a: &[Vec<Idx>],
-                                   in_b: &[Vec<Idx>],
-                                   out_a: &[Vec<Idx>],
-                                   out_b: &[Vec<Idx>],
-                                   eps: f32,
-                                   stop_after_iter: usize,
-                                   node_color_scale: &F)
-                                   -> (usize, DMat<f32>)
-    where F: Fn((usize, usize)) -> f32
-{
-    let (na, nb) = (in_a.len(), in_b.len());
-    assert!((na, nb) == (out_a.len(), out_b.len()));
-
-    // `x` is the node-similarity matrix.
-    // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
-    // B.edges().
-    let mut x: DMat<f32> = DMat::from_fn(na, nb, |i, j| {
-        node_color_scale((i, j)) *
-        if in_a[i].len() + out_a[i].len() > 0 && in_b[j].len() + out_b[j].len() > 0 {
-            1.0
-        } else {
-            0.0
-        }
-    });
-
-    let mut iter = 0;
-    let mut new_x: DMat<f32> = DMat::new_zeros(na, nb);
-
-    loop {
-        if x.approx_eq_eps(&new_x, &eps) || iter >= stop_after_iter {
-            break;
-        }
-
-        next_x(&x, &mut new_x, in_a, in_b, out_a, out_b, node_color_scale);
-        mem::swap(&mut new_x, &mut x);
-        iter += 1;
-    }
-
-    (iter, x)
+#[derive(Debug)]
+pub struct NodeSimilarityMatrix {
+    // number of nodes in graph A
+    na: usize,
+    // number of nodes in graph B
+    nb: usize,
+    // current version of similarity matrix
+    current: DMat<f32>,
+    // previous version of similarity matrix
+    previous: DMat<f32>,
+    // current number of iterations
+    num_iters: usize,
 }
 
-/// Different similarity measures can be constructed from the node similarity matrix.
-pub enum ScoreMethod {
+impl NodeSimilarityMatrix {
+    pub fn init<F>(in_a: &[Vec<Idx>],
+                   in_b: &[Vec<Idx>],
+                   out_a: &[Vec<Idx>],
+                   out_b: &[Vec<Idx>],
+                   node_color_scale: &F)
+                   -> NodeSimilarityMatrix
+        where F: Fn((usize, usize)) -> f32
+    {
+        let (na, nb) = (in_a.len(), in_b.len());
+        assert!((na, nb) == (out_a.len(), out_b.len()));
+
+        // `x` is the node-similarity matrix.
+        // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
+        // B.edges().
+        let x: DMat<f32> = DMat::from_fn(na, nb, |i, j| {
+            node_color_scale((i, j)) *
+            if in_a[i].len() + out_a[i].len() > 0 && in_b[j].len() + out_b[j].len() > 0 {
+                1.0
+            } else {
+                0.0
+            }
+        });
+
+        let new_x: DMat<f32> = DMat::new_zeros(na, nb);
+
+        NodeSimilarityMatrix {
+            na: na,
+            nb: nb,
+            current: x,
+            previous: new_x,
+            num_iters: 0,
+        }
+    }
+
+    fn in_eps(&self, eps: f32) -> bool {
+        self.previous.approx_eq_eps(&self.current, &eps)
+    }
+
+    fn next<F>(&mut self,
+               in_a: &[Vec<Idx>],
+               in_b: &[Vec<Idx>],
+               out_a: &[Vec<Idx>],
+               out_b: &[Vec<Idx>],
+               node_color_scale: &F)
+        where F: Fn((usize, usize)) -> f32
+    {
+        next_x(&self.current,
+               &mut self.previous,
+               in_a,
+               in_b,
+               out_a,
+               out_b,
+               node_color_scale);
+        mem::swap(&mut self.previous, &mut self.current);
+        self.num_iters += 1;
+    }
+
+    #[inline]
+    /// Calculates the similarity matrix for two graphs A and B.
+    ///
+    /// `in_a`:  Incoming edge list for each node of graph A
+    /// `in_b`:  Incoming edge list for each node of graph B
+    /// `out_a`: Outgoing edge list for each node of graph A
+    /// `out_b`: Outgoing edge list for each node of graph B
+    /// `eps`:   When to stop the iteration
+    /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
+    pub fn calc<F>(in_a: &[Vec<Idx>],
+                   in_b: &[Vec<Idx>],
+                   out_a: &[Vec<Idx>],
+                   out_b: &[Vec<Idx>],
+                   eps: f32,
+                   stop_after_iter: usize,
+                   node_color_scale: &F)
+                   -> NodeSimilarityMatrix
+        where F: Fn((usize, usize)) -> f32
+    {
+        let mut x = NodeSimilarityMatrix::init(in_a, in_b, out_a, out_b, node_color_scale);
+
+        for _ in 0..stop_after_iter {
+            if x.in_eps(eps) {
+                break;
+            }
+            x.next(in_a, in_b, out_a, out_b, node_color_scale);
+        }
+
+        return x;
+    }
+
+    fn matrix(self) -> DMat<f32> {
+        self.current
+    }
+
+    pub fn num_iterations(&self) -> usize {
+        self.num_iters
+    }
+
+    fn score_optimal_sum(&self, n: usize) -> f32 {
+        let x = &self.current;
+        assert!(n > 0);
+        let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
+        let assignment = solve_assignment(&mut w);
+        assert!(assignment.len() == n);
+        let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
+        score
+    }
+
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Used as default in the paper.
-    SumNormMinDegree,
+    pub fn score_sum_norm_min_degree(&self) -> f32 {
+        let x = &self.current;
+        let n = cmp::min(x.nrows(), x.ncols());
+        if n > 0 {
+            self.score_optimal_sum(n) / n as f32
+        } else {
+            0.0
+        }
+    }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Penalizes the difference in size of graphs.
-    SumNormMaxDegree,
+    pub fn score_sum_norm_max_degree(&self) -> f32 {
+        let x = &self.current;
+        let n = cmp::min(x.nrows(), x.ncols());
+        let m = cmp::max(x.nrows(), x.ncols());
+
+        if n > 0 {
+            assert!(m > 0);
+            self.score_optimal_sum(n) / m as f32
+        } else {
+            0.0
+        }
+    }
 
     /// Calculates the average over the whole node similarity matrix. This is faster,
     /// as no assignment has to be found. "Graphs with greater number of automorphisms
     /// would be considered to be more self-similar than graphs without automorphisms."
-    Average,
-}
-
-
-#[inline]
-/// Calculates the similiarity of two graphs.
-///
-/// For parameters see `neighbor_matching_matrix`.
-pub fn neighbor_matching_score<F>(in_a: &[Vec<Idx>],
-                                  in_b: &[Vec<Idx>],
-                                  out_a: &[Vec<Idx>],
-                                  out_b: &[Vec<Idx>],
-                                  eps: f32,
-                                  stop_after_iter: usize,
-                                  node_color_scale: &F,
-                                  score_method: ScoreMethod)
-                                  -> (usize, f32)
-    where F: Fn((usize, usize)) -> f32
-{
-    let (iter, x) = neighbor_matching_matrix(in_a,
-                                             in_b,
-                                             out_a,
-                                             out_b,
-                                             eps,
-                                             stop_after_iter,
-                                             node_color_scale);
-    let n = cmp::min(x.nrows(), x.ncols());
-    let m = cmp::max(x.nrows(), x.ncols());
-    if n == 0 {
-        return (iter, 0.0);
-    }
-
-    match score_method {
-        ScoreMethod::SumNormMinDegree | ScoreMethod::SumNormMaxDegree => {
-            let norm = match score_method {
-                ScoreMethod::SumNormMinDegree => n as f32,
-                ScoreMethod::SumNormMaxDegree => m as f32,
-                _ => unreachable!(),
-            };
-
-            let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
-            let assignment = solve_assignment(&mut w);
-            assert!(assignment.len() == n);
-            let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
-            (iter, score / norm)
-        }
-        ScoreMethod::Average => {
+    pub fn score_average(&self) -> f32 {
+        let x = &self.current;
+        let n = cmp::min(x.nrows(), x.ncols());
+        if n > 0 {
             let sum: f32 = x.as_vec().iter().fold(0.0, |acc, &v| acc + v);
             let len = x.as_vec().len();
             assert!(len > 0);
-            (iter, sum / len as f32)
+            sum / len as f32
+        } else {
+            0.0
         }
     }
 }
@@ -231,9 +276,10 @@ fn test_matrix() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
-    println!("{:?}", mat);
-    assert_eq!(iter, 1);
+    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
+    println!("{:?}", s);
+    assert_eq!(1, s.num_iterations());
+    let mat = s.matrix();
     assert_eq!(2, mat.nrows());
     assert_eq!(2, mat.ncols());
 
@@ -252,8 +298,9 @@ fn test_matrix_iter1() {
     let in_b = vec![vec![0, 0, 0, 0, 0]];
     let out_b = vec![vec![0, 0, 0, 0, 0]];
 
-    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 1, &|_| 1.0);
-    assert_eq!(iter, 1);
+    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 1, &|_| 1.0);
+    assert_eq!(1, s.num_iterations());
+    let mat = s.matrix();
     assert_eq!(3.0 / 5.0, mat[(0, 0)]);
 }
 
@@ -268,29 +315,13 @@ fn test_score() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let (iter, score) = neighbor_matching_score(&in_a,
-                                                &in_b,
-                                                &out_a,
-                                                &out_b,
-                                                0.1,
-                                                100,
-                                                &|_| 1.0,
-                                                ScoreMethod::SumNormMinDegree);
-    assert_eq!(iter, 1);
+    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
+
+    assert_eq!(1, s.num_iterations());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, score);
-
-    let (iter, score) = neighbor_matching_score(&in_a,
-                                                &in_b,
-                                                &out_a,
-                                                &out_b,
-                                                0.1,
-                                                100,
-                                                &|_| 1.0,
-                                                ScoreMethod::SumNormMaxDegree);
-    assert_eq!(iter, 1);
+    assert_eq!(1.0, s.score_sum_norm_min_degree());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, score);
+    assert_eq!(1.0, s.score_sum_norm_max_degree());
 }
