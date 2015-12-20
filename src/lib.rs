@@ -11,13 +11,15 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 
+pub type Idx = usize;
+
 #[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
 ///
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
-fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
+fn s_next(n_i: &[Idx], n_j: &[Idx], x: &DMat<f32>) -> f32 {
     let max_deg = cmp::max(n_i.len(), n_j.len());
     let min_deg = cmp::min(n_i.len(), n_j.len());
 
@@ -29,7 +31,7 @@ fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
     assert!(min_deg > 0 && max_deg > 0);
 
     // map indicies from 0..min(degree) to the node indices
-    let mapidx = |(a, b)| (n_i[a], n_j[b]);
+    let mapidx = |(a, b)| (n_i[a] as usize, n_j[b] as usize);
 
     let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
 
@@ -49,10 +51,10 @@ fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
 /// node-color distance (within 0...1) could be used to penalize.
 fn next_x<F>(x: &DMat<f32>,
              new_x: &mut DMat<f32>,
-             in_a: &[Vec<usize>],
-             in_b: &[Vec<usize>],
-             out_a: &[Vec<usize>],
-             out_b: &[Vec<usize>],
+             in_a: &[Vec<Idx>],
+             in_b: &[Vec<Idx>],
+             out_a: &[Vec<Idx>],
+             out_b: &[Vec<Idx>],
              node_color_scale: F)
     where F: Fn((usize, usize)) -> f32
 {
@@ -79,10 +81,10 @@ fn next_x<F>(x: &DMat<f32>,
 /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
 ///
 /// Returns (number of iterations, similarity matrix `x`)
-pub fn neighbor_matching_matrix<F>(in_a: &[Vec<usize>],
-                                   in_b: &[Vec<usize>],
-                                   out_a: &[Vec<usize>],
-                                   out_b: &[Vec<usize>],
+pub fn neighbor_matching_matrix<F>(in_a: &[Vec<Idx>],
+                                   in_b: &[Vec<Idx>],
+                                   out_a: &[Vec<Idx>],
+                                   out_b: &[Vec<Idx>],
                                    eps: f32,
                                    stop_after_iter: usize,
                                    node_color_scale: &F)
@@ -149,10 +151,10 @@ pub enum ScoreMethod {
 /// Calculates the similiarity of two graphs.
 ///
 /// For parameters see `neighbor_matching_matrix`.
-pub fn neighbor_matching_score<F>(in_a: &[Vec<usize>],
-                                  in_b: &[Vec<usize>],
-                                  out_a: &[Vec<usize>],
-                                  out_b: &[Vec<usize>],
+pub fn neighbor_matching_score<F>(in_a: &[Vec<Idx>],
+                                  in_b: &[Vec<Idx>],
+                                  out_a: &[Vec<Idx>],
+                                  out_b: &[Vec<Idx>],
                                   eps: f32,
                                   stop_after_iter: usize,
                                   node_color_scale: &F,
