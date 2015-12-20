@@ -1,6 +1,7 @@
 /// A graph similarity score using neighbor matching according to [this paper][1].
 ///
-/// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity of Graph Nodes by Neighbor Matching"
+/// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
+///      of Graph Nodes by Neighbor Matching"
 
 extern crate nalgebra;
 extern crate munkres;
@@ -104,14 +105,24 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
     (iter, x)
 }
 
-/// Whether the sum of weights is divided by min(degree A, degree B) or max(degree A, degree B)
-pub enum ScoreNormalization {
+/// Different similarity measures can be constructed from the node similarity matrix.
+pub enum ScoreMethod {
+    /// Sums the optimal assignment of the node similarities and normalizes (divides)
+    /// by the min degree of both graphs.
     /// Used as default in the paper.
-    MinDegree,
+    SumNormMinDegree,
 
+    /// Sums the optimal assignment of the node similarities and normalizes (divides)
+    /// by the min degree of both graphs.
     /// Penalizes the difference in size of graphs.
-    MaxDegree,
+    SumNormMaxDegree,
+
+    /// Calculates the average over the whole node similarity matrix. This is faster,
+    /// as no assignment has to be found. "Graphs with greater number of automorphisms
+    /// would be considered to be more self-similar than graphs without automorphisms."
+    Average,
 }
+
 
 /// Calculates the similiarity of two graphs.
 ///
@@ -122,7 +133,7 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
                                out_b: &[Vec<usize>],
                                eps: f32,
                                stop_after_iter: usize,
-                               norm: ScoreNormalization)
+                               score_method: ScoreMethod)
                                -> (usize, f32) {
     let (iter, x) = neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter);
     let n = cmp::min(x.nrows(), x.ncols());
@@ -130,19 +141,28 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
     if n == 0 {
         return (iter, 0.0);
     }
-    let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
 
-    let assignment = solve_assignment(&mut w);
-    assert!(assignment.len() == n);
+    match score_method {
+        ScoreMethod::SumNormMinDegree | ScoreMethod::SumNormMaxDegree => {
+            let norm = match score_method {
+                ScoreMethod::SumNormMinDegree => n as f32,
+                ScoreMethod::SumNormMaxDegree => m as f32,
+                _ => unreachable!(),
+            };
 
-    let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
-
-    (iter,
-     score /
-     match norm {
-        ScoreNormalization::MinDegree => n as f32,
-        ScoreNormalization::MaxDegree => m as f32,
-    })
+            let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
+            let assignment = solve_assignment(&mut w);
+            assert!(assignment.len() == n);
+            let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
+            (iter, score / norm)
+        }
+        ScoreMethod::Average => {
+            let sum: f32 = x.as_vec().iter().fold(0.0, |acc, &v| acc + v);
+            let len = x.as_vec().len();
+            assert!(len > 0);
+            (iter, sum / len as f32)
+        }
+    }
 }
 
 #[test]
@@ -198,7 +218,7 @@ fn test_score() {
                                                 &out_b,
                                                 0.1,
                                                 100,
-                                                ScoreNormalization::MinDegree);
+                                                ScoreMethod::SumNormMinDegree);
     assert_eq!(iter, 1);
 
     // The score is 1.0 <=> A and B are isomorphic
@@ -210,7 +230,7 @@ fn test_score() {
                                                 &out_b,
                                                 0.1,
                                                 100,
-                                                ScoreNormalization::MaxDegree);
+                                                ScoreMethod::SumNormMaxDegree);
     assert_eq!(iter, 1);
 
     // The score is 1.0 <=> A and B are isomorphic
