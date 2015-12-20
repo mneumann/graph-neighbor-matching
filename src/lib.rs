@@ -10,8 +10,11 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 
-// n_i contains the neighborhood of i (either in or out neighbors, not both)
-// n_j contains the neighborhood of j (either in or out neighbors, not both)
+/// Calculates the similarity of two nodes `i` and `j`.
+///
+/// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
+/// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
+/// `x`   the similarity matrix.
 fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
     let max_deg = cmp::max(n_i.len(), n_j.len());
     let min_deg = cmp::min(n_i.len(), n_j.len());
@@ -20,6 +23,8 @@ fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
         // in the paper, 0/0 is defined as 1.0
         return 1.0;
     }
+
+    assert!(min_deg > 0 && max_deg > 0);
 
     // map indicies from 0..min(degree) to the node indices
     let mapidx = |(a, b)| (n_i[a], n_j[b]);
@@ -51,12 +56,14 @@ fn next_x(x: &DMat<f32>,
     }
 }
 
-/// in_a:  Incoming edge list for each node of graph A
-/// in_b:  Incoming edge list for each node of graph B
-/// out_a: Outgoing edge list for each node of graph A
-/// out_b: Outgoing edge list for each node of graph B
-/// eps:   When to stop the iteration
-/// stop_after_iter: Stop after iteration (Calculate x(stop_after_iter))
+/// Calculates the similarity matrix for two graphs A and B.
+///
+/// `in_a`:  Incoming edge list for each node of graph A
+/// `in_b`:  Incoming edge list for each node of graph B
+/// `out_a`: Outgoing edge list for each node of graph A
+/// `out_b`: Outgoing edge list for each node of graph B
+/// `eps`:   When to stop the iteration
+/// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
 ///
 /// Returns (number of iterations, similarity matrix `x`)
 pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
@@ -98,6 +105,8 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
 }
 
 
+/// Calculates the similiarity of two graphs.
+///
 /// For parameters see `neighbor_matching_matrix`.
 pub fn neighbor_matching_score(in_a: &[Vec<usize>],
                                in_b: &[Vec<usize>],
@@ -106,8 +115,6 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
                                eps: f32,
                                stop_after_iter: usize)
                                -> (usize, f32) {
-
-
     let (iter, x) = neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter);
     let n = cmp::min(x.nrows(), x.ncols());
     if n == 0 {
