@@ -13,13 +13,28 @@ use std::mem;
 
 pub type Idx = u32;
 
+trait Edges {
+    fn len(&self) -> usize;
+    fn nth_node(&self, n: usize) -> usize;
+}
+
+impl<'a> Edges for &'a [Idx] {
+    fn len(&self) -> usize {
+        let x: &[Idx] = self;
+        x.len()
+    }
+    fn nth_node(&self, n: usize) -> usize {
+        self[n] as usize
+    }
+}
+
 #[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
 ///
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
-fn s_next(n_i: &[Idx], n_j: &[Idx], x: &DMat<f32>) -> f32 {
+fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
     let max_deg = cmp::max(n_i.len(), n_j.len());
     let min_deg = cmp::min(n_i.len(), n_j.len());
 
@@ -31,7 +46,7 @@ fn s_next(n_i: &[Idx], n_j: &[Idx], x: &DMat<f32>) -> f32 {
     assert!(min_deg > 0 && max_deg > 0);
 
     // map indicies from 0..min(degree) to the node indices
-    let mapidx = |(a, b)| (n_i[a] as usize, n_j[b] as usize);
+    let mapidx = |(a, b)| (n_i.nth_node(a), n_j.nth_node(b));
 
     let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
 
@@ -63,8 +78,12 @@ fn next_x<F>(x: &DMat<f32>,
 
     for i in 0..shape.0 {
         for j in 0..shape.1 {
+            let in_i: &[Idx] = &in_a[i];
+            let in_j: &[Idx] = &in_b[j];
+            let out_i: &[Idx] = &out_a[i];
+            let out_j: &[Idx] = &out_b[j];
             new_x[(i, j)] = node_color_scale((i, j)) *
-                            (s_next(&in_a[i], &in_b[j], x) + s_next(&out_a[i], &out_b[j], x)) /
+                            (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) /
                             2.0;
         }
     }
@@ -114,13 +133,7 @@ pub fn neighbor_matching_matrix<F>(in_a: &[Vec<Idx>],
             break;
         }
 
-        next_x(&x,
-               &mut new_x,
-               in_a,
-               in_b,
-               out_a,
-               out_b,
-               node_color_scale);
+        next_x(&x, &mut new_x, in_a, in_b, out_a, out_b, node_color_scale);
         mem::swap(&mut new_x, &mut x);
         iter += 1;
     }
