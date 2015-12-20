@@ -104,6 +104,14 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
     (iter, x)
 }
 
+/// Whether the sum of weights is divided by min(degree A, degree B) or max(degree A, degree B)
+pub enum ScoreNormalization {
+    /// Used as default in the paper.
+    MinDegree,
+
+    /// Penalizes the difference in size of graphs.
+    MaxDegree,
+}
 
 /// Calculates the similiarity of two graphs.
 ///
@@ -113,10 +121,12 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
                                out_a: &[Vec<usize>],
                                out_b: &[Vec<usize>],
                                eps: f32,
-                               stop_after_iter: usize)
+                               stop_after_iter: usize,
+                               norm: ScoreNormalization)
                                -> (usize, f32) {
     let (iter, x) = neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter);
     let n = cmp::min(x.nrows(), x.ncols());
+    let m = cmp::max(x.nrows(), x.ncols());
     if n == 0 {
         return (iter, 0.0);
     }
@@ -126,9 +136,13 @@ pub fn neighbor_matching_score(in_a: &[Vec<usize>],
     assert!(assignment.len() == n);
 
     let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
-    let score = score / n as f32;
 
-    (iter, score)
+    (iter,
+     score /
+     match norm {
+        ScoreNormalization::MinDegree => n as f32,
+        ScoreNormalization::MaxDegree => m as f32,
+    })
 }
 
 #[test]
@@ -178,7 +192,25 @@ fn test_score() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let (iter, score) = neighbor_matching_score(&in_a, &in_b, &out_a, &out_b, 0.1, 100);
+    let (iter, score) = neighbor_matching_score(&in_a,
+                                                &in_b,
+                                                &out_a,
+                                                &out_b,
+                                                0.1,
+                                                100,
+                                                ScoreNormalization::MinDegree);
+    assert_eq!(iter, 1);
+
+    // The score is 1.0 <=> A and B are isomorphic
+    assert_eq!(1.0, score);
+
+    let (iter, score) = neighbor_matching_score(&in_a,
+                                                &in_b,
+                                                &out_a,
+                                                &out_b,
+                                                0.1,
+                                                100,
+                                                ScoreNormalization::MaxDegree);
     assert_eq!(iter, 1);
 
     // The score is 1.0 <=> A and B are isomorphic
