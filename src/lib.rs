@@ -19,13 +19,20 @@ trait Edges {
 
     /// Returns the target node of the nth-edge
     fn nth_edge(&self, n: usize) -> usize;
+
+    /// Returns the nth edge weight
+    fn nth_edge_weight(&self, n: usize) -> f32 {
+        panic!();
+    }
 }
 
 impl<'a> Edges for &'a [Idx] {
+    #[inline]
     fn len(&self) -> usize {
         let x: &[Idx] = self;
         x.len()
     }
+    #[inline]
     fn nth_edge(&self, n: usize) -> usize {
         self[n] as usize
     }
