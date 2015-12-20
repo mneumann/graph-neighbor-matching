@@ -14,8 +14,11 @@ use std::mem;
 pub type Idx = u32;
 
 trait Edges {
+    /// The number of edges
     fn len(&self) -> usize;
-    fn nth_node(&self, n: usize) -> usize;
+
+    /// Returns the target node of the nth-edge
+    fn nth_edge(&self, n: usize) -> usize;
 }
 
 impl<'a> Edges for &'a [Idx] {
@@ -23,7 +26,7 @@ impl<'a> Edges for &'a [Idx] {
         let x: &[Idx] = self;
         x.len()
     }
-    fn nth_node(&self, n: usize) -> usize {
+    fn nth_edge(&self, n: usize) -> usize {
         self[n] as usize
     }
 }
@@ -46,7 +49,7 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
     assert!(min_deg > 0 && max_deg > 0);
 
     // map indicies from 0..min(degree) to the node indices
-    let mapidx = |(a, b)| (n_i.nth_node(a), n_j.nth_node(b));
+    let mapidx = |(a, b)| (n_i.nth_edge(a), n_j.nth_edge(b));
 
     let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
 
