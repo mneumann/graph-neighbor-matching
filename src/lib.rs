@@ -11,6 +11,7 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 
+#[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
 ///
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
@@ -40,23 +41,34 @@ fn s_next(n_i: &[usize], n_j: &[usize], x: &DMat<f32>) -> f32 {
     return sum / max_deg as f32;
 }
 
-// Calculates x[k+1]
-fn next_x(x: &DMat<f32>,
-          new_x: &mut DMat<f32>,
-          in_a: &[Vec<usize>],
-          in_b: &[Vec<usize>],
-          out_a: &[Vec<usize>],
-          out_b: &[Vec<usize>]) {
+#[inline]
+/// Calculates x[k+1]
+///
+/// `node_color_scale((i,j))`: If two nodes `i` (of graph A) and `j` (of graph B)
+/// are of different color, this can be set to return 0.0. Alternatively a
+/// node-color distance (within 0...1) could be used to penalize.
+fn next_x<F>(x: &DMat<f32>,
+             new_x: &mut DMat<f32>,
+             in_a: &[Vec<usize>],
+             in_b: &[Vec<usize>],
+             out_a: &[Vec<usize>],
+             out_b: &[Vec<usize>],
+             node_color_scale: F)
+    where F: Fn((usize, usize)) -> f32
+{
     let shape = x.shape();
     assert!(shape == new_x.shape());
 
     for i in 0..shape.0 {
         for j in 0..shape.1 {
-            new_x[(i, j)] = (s_next(&in_a[i], &in_b[j], x) + s_next(&out_a[i], &out_b[j], x)) / 2.0;
+            new_x[(i, j)] = node_color_scale((i, j)) *
+                            (s_next(&in_a[i], &in_b[j], x) + s_next(&out_a[i], &out_b[j], x)) /
+                            2.0;
         }
     }
 }
 
+#[inline]
 /// Calculates the similarity matrix for two graphs A and B.
 ///
 /// `in_a`:  Incoming edge list for each node of graph A
@@ -67,13 +79,16 @@ fn next_x(x: &DMat<f32>,
 /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
 ///
 /// Returns (number of iterations, similarity matrix `x`)
-pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
-                                in_b: &[Vec<usize>],
-                                out_a: &[Vec<usize>],
-                                out_b: &[Vec<usize>],
-                                eps: f32,
-                                stop_after_iter: usize)
-                                -> (usize, DMat<f32>) {
+pub fn neighbor_matching_matrix<F>(in_a: &[Vec<usize>],
+                                   in_b: &[Vec<usize>],
+                                   out_a: &[Vec<usize>],
+                                   out_b: &[Vec<usize>],
+                                   eps: f32,
+                                   stop_after_iter: usize,
+                                   node_color_scale: &F)
+                                   -> (usize, DMat<f32>)
+    where F: Fn((usize, usize)) -> f32
+{
     let (na, nb) = (in_a.len(), in_b.len());
     assert!((na, nb) == (out_a.len(), out_b.len()));
 
@@ -81,7 +96,7 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
     // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
     // B.edges().
     let mut x: DMat<f32> = DMat::from_fn(na, nb, |i, j| {
-        // XXX: Is that correct?
+        node_color_scale((i, j)) *
         if in_a[i].len() + out_a[i].len() > 0 && in_b[j].len() + out_b[j].len() > 0 {
             1.0
         } else {
@@ -97,7 +112,13 @@ pub fn neighbor_matching_matrix(in_a: &[Vec<usize>],
             break;
         }
 
-        next_x(&x, &mut new_x, &in_a, &in_b, &out_a, &out_b);
+        next_x(&x,
+               &mut new_x,
+               &in_a,
+               &in_b,
+               &out_a,
+               &out_b,
+               node_color_scale);
         mem::swap(&mut new_x, &mut x);
         iter += 1;
     }
@@ -124,18 +145,28 @@ pub enum ScoreMethod {
 }
 
 
+#[inline]
 /// Calculates the similiarity of two graphs.
 ///
 /// For parameters see `neighbor_matching_matrix`.
-pub fn neighbor_matching_score(in_a: &[Vec<usize>],
-                               in_b: &[Vec<usize>],
-                               out_a: &[Vec<usize>],
-                               out_b: &[Vec<usize>],
-                               eps: f32,
-                               stop_after_iter: usize,
-                               score_method: ScoreMethod)
-                               -> (usize, f32) {
-    let (iter, x) = neighbor_matching_matrix(in_a, in_b, out_a, out_b, eps, stop_after_iter);
+pub fn neighbor_matching_score<F>(in_a: &[Vec<usize>],
+                                  in_b: &[Vec<usize>],
+                                  out_a: &[Vec<usize>],
+                                  out_b: &[Vec<usize>],
+                                  eps: f32,
+                                  stop_after_iter: usize,
+                                  node_color_scale: &F,
+                                  score_method: ScoreMethod)
+                                  -> (usize, f32)
+    where F: Fn((usize, usize)) -> f32
+{
+    let (iter, x) = neighbor_matching_matrix(in_a,
+                                             in_b,
+                                             out_a,
+                                             out_b,
+                                             eps,
+                                             stop_after_iter,
+                                             node_color_scale);
     let n = cmp::min(x.nrows(), x.ncols());
     let m = cmp::max(x.nrows(), x.ncols());
     if n == 0 {
@@ -175,7 +206,7 @@ fn test_matrix() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 100);
+    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
     println!("{:?}", mat);
     assert_eq!(iter, 1);
     assert_eq!(2, mat.nrows());
@@ -196,7 +227,7 @@ fn test_matrix_iter1() {
     let in_b = vec![vec![0, 0, 0, 0, 0]];
     let out_b = vec![vec![0, 0, 0, 0, 0]];
 
-    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 1);
+    let (iter, mat) = neighbor_matching_matrix(&in_a, &in_b, &out_a, &out_b, 0.1, 1, &|_| 1.0);
     assert_eq!(iter, 1);
     assert_eq!(3.0 / 5.0, mat[(0, 0)]);
 }
@@ -218,6 +249,7 @@ fn test_score() {
                                                 &out_b,
                                                 0.1,
                                                 100,
+                                                &|_| 1.0,
                                                 ScoreMethod::SumNormMinDegree);
     assert_eq!(iter, 1);
 
@@ -230,6 +262,7 @@ fn test_score() {
                                                 &out_b,
                                                 0.1,
                                                 100,
+                                                &|_| 1.0,
                                                 ScoreMethod::SumNormMaxDegree);
     assert_eq!(iter, 1);
 
