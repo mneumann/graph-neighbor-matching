@@ -11,7 +11,7 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 
-pub type Idx = usize;
+pub type Idx = u32;
 
 #[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
