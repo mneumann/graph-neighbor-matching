@@ -114,10 +114,10 @@ pub fn neighbor_matching_matrix<F>(in_a: &[Vec<usize>],
 
         next_x(&x,
                &mut new_x,
-               &in_a,
-               &in_b,
-               &out_a,
-               &out_b,
+               in_a,
+               in_b,
+               out_a,
+               out_b,
                node_color_scale);
         mem::swap(&mut new_x, &mut x);
         iter += 1;
