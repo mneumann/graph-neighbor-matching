@@ -344,8 +344,8 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
     /// similarity.
     fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> Closed01<f32> {
-        let out_i: &[Idx] = &self.graph_a.out_edges[node_i];
-        let out_j: &[Idx] = &self.graph_b.out_edges[node_j];
+        let out_i = self.graph_a.out_edges_of(node_i);
+        let out_j = self.graph_b.out_edges_of(node_j);
 
         let max_deg = cmp::max(out_i.len(), out_j.len());
 
