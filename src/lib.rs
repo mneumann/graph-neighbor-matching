@@ -7,7 +7,7 @@ extern crate nalgebra;
 extern crate munkres;
 
 use nalgebra::{DMat, Shape, ApproxEq};
-use munkres::{WeightMatrix, solve_assignment};
+use munkres::{Weights, WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 use std::fmt;
@@ -19,11 +19,12 @@ trait Edges {
     fn len(&self) -> usize;
 
     /// Returns the target node of the nth-edge
-    fn nth_edge(&self, n: usize) -> usize;
+    fn nth_edge(&self, n: usize) -> Option<usize>;
 
-    /// Returns the nth edge weight
-    fn nth_edge_weight(&self, _n: usize) -> f32 {
-        panic!();
+    /// Returns the nth edge weight. We expect edge weights to be
+    /// normalized in the range [0, 1].
+    fn nth_edge_weight(&self, _n: usize) -> Option<f32> {
+        None
     }
 }
 
@@ -34,8 +35,8 @@ impl<'a> Edges for &'a [Idx] {
         x.len()
     }
     #[inline]
-    fn nth_edge(&self, n: usize) -> usize {
-        self[n] as usize
+    fn nth_edge(&self, n: usize) -> Option<usize> {
+        self.get(n).map(|&n| n as usize)
     }
 }
 
@@ -76,7 +77,7 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
     assert!(min_deg > 0 && max_deg > 0);
 
     // map indicies from 0..min(degree) to the node indices
-    let mapidx = |(a, b)| (n_i.nth_edge(a), n_j.nth_edge(b));
+    let mapidx = |(a, b)| (n_i.nth_edge(a).unwrap(), n_j.nth_edge(b).unwrap());
 
     let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
 
@@ -208,37 +209,130 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
         self.num_iterations
     }
 
-    fn optimal_node_assignment(&self, n: usize) -> Vec<(usize, usize)> {
-        let x = &self.current;
-        assert!(n > 0);
-        let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
-        let assignment = solve_assignment(&mut w);
+    pub fn min_nodes(&self) -> usize {
+        cmp::min(self.current.nrows(), self.current.ncols())
+    }
+
+    pub fn max_nodes(&self) -> usize {
+        cmp::max(self.current.nrows(), self.current.ncols())
+    }
+
+    pub fn optimal_node_assignment(&self) -> Vec<(usize, usize)> {
+        let n = self.min_nodes();
+        let assignment = if n > 0 {
+            let mut w = WeightMatrix::from_fn(n, |ij| self.current[ij]);
+            solve_assignment(&mut w)
+        } else {
+            Vec::new()
+        };
         assert!(assignment.len() == n);
         assignment
     }
 
-    fn score_optimal_sum(&self, n: usize) -> f32 {
-        self.optimal_node_assignment(n).iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+    fn score_optimal_sum(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+        match node_assignment {
+            Some(node_assignment) => {
+                assert!(node_assignment.len() == self.min_nodes());
+                node_assignment.iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+            }
+            None => {
+                let node_assignment = self.optimal_node_assignment();
+                assert!(node_assignment.len() == self.min_nodes());
+                node_assignment.iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+            }
+        }
     }
 
     /// Calculate a measure how good the edge weights match up.
     ///
     /// We start by calculating the optimal node assignment between nodes of graph A and graph B,
     /// then compare all outgoing edges of similar-assigned nodes by again using an assignment
-    /// between the edge weight differences of all edge pairs.
-    pub fn score_outgoing_edge_weights(&self) -> f32 {
-        // XXX
-        0.0
+    /// between the edge-weight differences of all edge pairs.
+    pub fn score_outgoing_edge_weights(&self, node_assignment: &[(usize, usize)]) -> f32 {
+        let n = self.min_nodes();
+        let m = self.max_nodes();
+
+        assert!(node_assignment.len() == n);
+
+        // we sum up all edge weight scores
+        let sum: f32 = node_assignment.iter().fold(0.0, |acc, &(node_i, node_j)| {
+            let score_ij = self.score_outgoing_edge_weights_of(node_i, node_j);
+            debug_assert!(score_ij >= 0.0 && score_ij <= 1.0);
+
+            acc + score_ij
+        });
+
+        debug_assert!(sum >= 0.0 && sum <= n as f32);
+
+        // to penalize for missing nodes, we divide by the maximum of number of nodes `m`.
+
+        debug_assert!(m >= n);
+
+        let score = sum / m as f32;
+
+        debug_assert!(score >= 0.0 && score <= 1.0);
+
+        score
+    }
+
+    /// Calculate a similarity measure of outgoing of nodes `node_i` of graph A and `node_j` of
+    /// graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
+    /// similarity.
+    fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> f32 {
+        let out_i: &[Idx] = &self.graph_a.out_edges[node_i];
+        let out_j: &[Idx] = &self.graph_b.out_edges[node_j];
+
+        let max_deg = cmp::max(out_i.len(), out_j.len());
+
+        if max_deg == 0 {
+            // Nodes with no edges are perfectly similar
+            return 1.0;
+        }
+
+        let mut w = WeightMatrix::from_fn(max_deg, |(i, j)| {
+            match (out_i.nth_edge_weight(i), out_j.nth_edge_weight(j)) {
+                (Some(w_i), Some(w_j)) => {
+                    assert!(w_i >= 0.0 && w_i <= 1.0);
+                    assert!(w_j >= 0.0 && w_j <= 1.0);
+                    let delta = (w_i - w_j).abs();
+                    assert!(delta >= 0.0 && delta <= 1.0);
+                    delta
+                }
+                _ => {
+                    // Maximum penalty between two weighted edges
+                    // NOTE: missing edges could be penalized more, but we already
+                    // penalize for that in the node similarity measure.
+                    1.0
+                }
+            }
+        });
+
+        // calculate optimal edge weight assignement.
+        let assignment = solve_assignment(&mut w);
+        assert!(assignment.len() == max_deg);
+
+        // The sum is the sum of all weight differences on the optimal `path`.
+        // It's range is from 0.0 (perfect matching) to max_deg*1.0 (bad matching).
+        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| acc + w.element_at(ij));
+
+        debug_assert!(sum >= 0.0 && sum <= max_deg as f32);
+
+        // we "invert" the normalized sum so that 1.0 means perfect matching and 0.0
+        // no matching.
+        let score = 1.0 - (sum / max_deg as f32);
+
+        debug_assert!(score >= 0.0 && score <= 1.0);
+
+        score
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Used as default in the paper.
-    pub fn score_sum_norm_min_degree(&self) -> f32 {
-        let x = &self.current;
-        let n = cmp::min(x.nrows(), x.ncols());
+    pub fn score_sum_norm_min_degree(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+        let n = self.min_nodes();
         if n > 0 {
-            self.score_optimal_sum(n) / n as f32
+            self.score_optimal_sum(node_assignment) / n as f32
         } else {
             0.0
         }
@@ -247,14 +341,13 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Penalizes the difference in size of graphs.
-    pub fn score_sum_norm_max_degree(&self) -> f32 {
-        let x = &self.current;
-        let n = cmp::min(x.nrows(), x.ncols());
-        let m = cmp::max(x.nrows(), x.ncols());
+    pub fn score_sum_norm_max_degree(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+        let n = self.min_nodes();
+        let m = self.max_nodes();
 
         if n > 0 {
             assert!(m > 0);
-            self.score_optimal_sum(n) / m as f32
+            self.score_optimal_sum(node_assignment) / m as f32
         } else {
             0.0
         }
@@ -264,11 +357,11 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// as no assignment has to be found. "Graphs with greater number of automorphisms
     /// would be considered to be more self-similar than graphs without automorphisms."
     pub fn score_average(&self) -> f32 {
-        let x = &self.current;
-        let n = cmp::min(x.nrows(), x.ncols());
+        let n = self.min_nodes();
         if n > 0 {
-            let sum: f32 = x.as_vec().iter().fold(0.0, |acc, &v| acc + v);
-            let len = x.as_vec().len();
+            let items = self.current.as_vec();
+            let sum: f32 = items.iter().fold(0.0, |acc, &v| acc + v);
+            let len = items.len();
             assert!(len > 0);
             sum / len as f32
         } else {
@@ -342,8 +435,8 @@ fn test_score() {
     assert_eq!(1, s.num_iterations());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_min_degree());
+    assert_eq!(1.0, s.score_sum_norm_min_degree(None));
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_max_degree());
+    assert_eq!(1.0, s.score_sum_norm_max_degree(None));
 }
