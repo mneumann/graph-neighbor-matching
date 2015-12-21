@@ -2,6 +2,8 @@
 ///
 /// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
 ///      of Graph Nodes by Neighbor Matching"
+///
+/// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
 
 extern crate nalgebra;
 extern crate munkres;
@@ -16,7 +18,7 @@ use std::fmt;
 pub type Idx = u32;
 
 /// Encapsulates a floating point number in the range [0, 1] including both endpoints.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Closed01<F>(F);
 
 impl Closed01<f32> {
@@ -161,10 +163,22 @@ impl<'a> Graph<'a> {
         n
     }
 
+    #[inline]
     fn node_degree(&self, node_idx: usize) -> usize {
         self.in_edges[node_idx].len() + self.out_edges[node_idx].len()
     }
+
+    #[inline]
+    fn in_edges_of(&self, node_idx: usize) -> &[Idx] {
+        &self.in_edges[node_idx]
+    }
+
+    #[inline]
+    fn out_edges_of(&self, node_idx: usize) -> &[Idx] {
+        &self.out_edges[node_idx]
+    }
 }
+
 
 #[derive(Debug)]
 pub struct GraphSimilarityMatrix<'a, F: NodeColorMatching + 'a> {
@@ -223,13 +237,13 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
             for i in 0..shape.0 {
                 for j in 0..shape.1 {
-                    let in_i: &[Idx] = &self.graph_a.in_edges[i];
-                    let in_j: &[Idx] = &self.graph_b.in_edges[j];
-                    let out_i: &[Idx] = &self.graph_a.out_edges[i];
-                    let out_j: &[Idx] = &self.graph_b.out_edges[j];
                     let scale = self.node_color_matching.node_color_matching(i, j);
-                    new_x[(i, j)] = Closed01::average(s_next(in_i, in_j, x),
-                                                      s_next(out_i, out_j, x))
+                    new_x[(i, j)] = Closed01::average(s_next(self.graph_a.in_edges_of(i),
+                                                             self.graph_b.in_edges_of(j),
+                                                             x),
+                                                      s_next(self.graph_a.out_edges_of(i),
+                                                             self.graph_b.out_edges_of(j),
+                                                             x))
                                         .scale(scale)
                                         .get()
                 }
