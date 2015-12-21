@@ -10,6 +10,7 @@ use nalgebra::{DMat, Shape, ApproxEq};
 use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
+use std::fmt;
 
 pub type Idx = u32;
 
@@ -38,7 +39,7 @@ impl<'a> Edges for &'a [Idx] {
     }
 }
 
-pub trait NodeColorMatching {
+pub trait NodeColorMatching: fmt::Debug {
     /// Determines how close or distant two nodes `node_i` of graph A,
     /// and `node_j` of graph B are. If they have different colors,
     /// this method could return 0.0 to describe that they are completely
@@ -48,6 +49,7 @@ pub trait NodeColorMatching {
     fn node_color_matching(&self, node_i: usize, node_j: usize) -> f32;
 }
 
+#[derive(Debug)]
 pub struct IgnoreNodeColors;
 
 impl NodeColorMatching for IgnoreNodeColors {
@@ -290,7 +292,7 @@ fn test_matrix() {
                                            IgnoreNodeColors);
     s.iterate(0.1, 100);
 
-    // println!("{:?}", s);
+    println!("{:?}", s);
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
     assert_eq!(2, mat.nrows());
