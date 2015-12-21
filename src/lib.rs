@@ -210,14 +210,27 @@ impl NodeSimilarityMatrix {
         self.num_iters
     }
 
-    fn score_optimal_sum(&self, n: usize) -> f32 {
+    fn optimal_node_assignment(&self, n: usize) -> Vec<(usize, usize)> {
         let x = &self.current;
         assert!(n > 0);
         let mut w = WeightMatrix::from_fn(n, |ij| x[ij]);
         let assignment = solve_assignment(&mut w);
         assert!(assignment.len() == n);
-        let score: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[ab]);
-        score
+        assignment
+    }
+
+    fn score_optimal_sum(&self, n: usize) -> f32 {
+        self.optimal_node_assignment(n).iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+    }
+
+    /// Calculate a measure how good the edge weights match up.
+    ///
+    /// We start by calculating the optimal node assignment between nodes of graph A and
+    /// graph B, then compare all outgoing edges of similar nodes by again using an
+    /// assignment.
+    pub fn score_outgoing_edge_weights(&self) -> f32 {
+        // XXX
+        0.0
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
