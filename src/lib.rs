@@ -76,20 +76,74 @@ trait Edges {
 
     /// Returns the nth edge weight. We expect edge weights to be
     /// normalized in the range [0, 1].
-    fn nth_edge_weight(&self, _n: usize) -> Option<Closed01<f32>> {
-        None
+    fn nth_edge_weight(&self, n: usize) -> Option<Closed01<f32>>;
+}
+
+#[derive(Debug)]
+pub struct Edge {
+    pointing_node: Idx,
+    weight: Closed01<f32>,
+}
+
+impl Edge {
+    pub fn new(node_idx: Idx, weight: Closed01<f32>) -> Edge {
+        Edge {
+            pointing_node: node_idx,
+            weight: weight,
+        }
     }
 }
 
-impl<'a> Edges for &'a [Idx] {
+impl<'a> Edges for &'a [Edge] {
     #[inline]
     fn len(&self) -> usize {
-        let x: &[Idx] = self;
+        let x: &[Edge] = self;
         x.len()
     }
     #[inline]
     fn nth_edge(&self, n: usize) -> Option<usize> {
-        self.get(n).map(|&n| n as usize)
+        self.get(n).map(|n| n.pointing_node as usize)
+    }
+    #[inline]
+    fn nth_edge_weight(&self, n: usize) -> Option<Closed01<f32>> {
+        self.get(n).map(|n| n.weight)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Graph<'a> {
+    in_edges: &'a [Vec<Edge>],
+    out_edges: &'a [Vec<Edge>],
+}
+
+impl<'a> Graph<'a> {
+    pub fn new(in_edges: &'a [Vec<Edge>], out_edges: &'a [Vec<Edge>]) -> Graph<'a> {
+        assert!(in_edges.len() == out_edges.len());
+        Graph {
+            in_edges: in_edges,
+            out_edges: out_edges,
+        }
+    }
+
+    fn num_nodes(&self) -> usize {
+        let n = self.in_edges.len();
+        assert!(n == self.out_edges.len());
+        n
+    }
+
+    #[inline]
+    fn node_degree(&self, node_idx: usize) -> usize {
+        self.in_edges[node_idx].len() + self.out_edges[node_idx].len()
+    }
+
+    #[inline]
+    fn in_edges_of(&self, node_idx: usize) -> &[Edge] {
+        &self.in_edges[node_idx]
+    }
+
+    #[inline]
+    fn out_edges_of(&self, node_idx: usize) -> &[Edge] {
+        &self.out_edges[node_idx]
     }
 }
 
@@ -140,43 +194,6 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> Closed01<f32> {
     let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[mapidx(ab)]);
 
     return Closed01::new(sum / max_deg as f32);
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Graph<'a> {
-    in_edges: &'a [Vec<Idx>],
-    out_edges: &'a [Vec<Idx>],
-}
-
-impl<'a> Graph<'a> {
-    pub fn new(in_edges: &'a [Vec<Idx>], out_edges: &'a [Vec<Idx>]) -> Graph<'a> {
-        assert!(in_edges.len() == out_edges.len());
-        Graph {
-            in_edges: in_edges,
-            out_edges: out_edges,
-        }
-    }
-
-    fn num_nodes(&self) -> usize {
-        let n = self.in_edges.len();
-        assert!(n == self.out_edges.len());
-        n
-    }
-
-    #[inline]
-    fn node_degree(&self, node_idx: usize) -> usize {
-        self.in_edges[node_idx].len() + self.out_edges[node_idx].len()
-    }
-
-    #[inline]
-    fn in_edges_of(&self, node_idx: usize) -> &[Idx] {
-        &self.in_edges[node_idx]
-    }
-
-    #[inline]
-    fn out_edges_of(&self, node_idx: usize) -> &[Idx] {
-        &self.out_edges[node_idx]
-    }
 }
 
 
@@ -435,15 +452,20 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     }
 }
 
+#[cfg(test)]
+fn edge(i: Idx) -> Edge {
+    Edge::new(i, Closed01::zero())
+}
+
 #[test]
 fn test_matrix() {
     // A: 0 --> 1
-    let in_a = vec![vec![], vec![0]];
-    let out_a = vec![vec![1], vec![]];
+    let in_a = vec![vec![], vec![edge(0)]];
+    let out_a = vec![vec![edge(1)], vec![]];
 
     // B: 0 <-- 1
-    let in_b = vec![vec![1], vec![]];
-    let out_b = vec![vec![], vec![0]];
+    let in_b = vec![vec![edge(1)], vec![]];
+    let out_b = vec![vec![], vec![edge(0)]];
 
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
@@ -465,11 +487,11 @@ fn test_matrix() {
 
 #[test]
 fn test_matrix_iter1() {
-    let in_a = vec![vec![0, 0, 0]];
-    let out_a = vec![vec![0, 0, 0]];
+    let in_a = vec![vec![edge(0), edge(0), edge(0)]];
+    let out_a = vec![vec![edge(0), edge(0), edge(0)]];
 
-    let in_b = vec![vec![0, 0, 0, 0, 0]];
-    let out_b = vec![vec![0, 0, 0, 0, 0]];
+    let in_b = vec![vec![edge(0), edge(0), edge(0), edge(0), edge(0)]];
+    let out_b = vec![vec![edge(0), edge(0), edge(0), edge(0), edge(0)]];
 
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
@@ -485,12 +507,12 @@ fn test_matrix_iter1() {
 #[test]
 fn test_score() {
     // A: 0 --> 1
-    let in_a = vec![vec![], vec![0]];
-    let out_a = vec![vec![1], vec![]];
+    let in_a = vec![vec![], vec![edge(0)]];
+    let out_a = vec![vec![edge(1)], vec![]];
 
     // B: 0 <-- 1
-    let in_b = vec![vec![1], vec![]];
-    let out_b = vec![vec![], vec![0]];
+    let in_b = vec![vec![edge(1)], vec![]];
+    let out_b = vec![vec![], vec![edge(0)]];
 
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
