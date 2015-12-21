@@ -14,9 +14,6 @@ use std::cmp;
 use std::mem;
 use std::fmt;
 
-/// Node index type. Our graphs never exceed 4 billion nodes.
-pub type Idx = u32;
-
 /// Encapsulates a floating point number in the range [0, 1] including both endpoints.
 #[derive(Copy, Clone, Debug)]
 pub struct Closed01<F>(F);
@@ -81,14 +78,16 @@ trait Edges {
 
 #[derive(Debug)]
 pub struct Edge {
-    pointing_node: Idx,
+    /// Node index type. Our graphs never exceed 4 billion nodes.
+    pointing_node: u32,
     weight: Closed01<f32>,
 }
 
 impl Edge {
-    pub fn new(node_idx: Idx, weight: Closed01<f32>) -> Edge {
+    pub fn new(node_idx: usize, weight: Closed01<f32>) -> Edge {
+        assert!(node_idx <= u32::max_value() as usize);
         Edge {
-            pointing_node: node_idx,
+            pointing_node: node_idx as u32,
             weight: weight,
         }
     }
@@ -453,7 +452,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 }
 
 #[cfg(test)]
-fn edge(i: Idx) -> Edge {
+fn edge(i: usize) -> Edge {
     Edge::new(i, Closed01::zero())
 }
 
