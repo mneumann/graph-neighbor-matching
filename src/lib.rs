@@ -21,7 +21,7 @@ trait Edges {
     fn nth_edge(&self, n: usize) -> usize;
 
     /// Returns the nth edge weight
-    fn nth_edge_weight(&self, n: usize) -> f32 {
+    fn nth_edge_weight(&self, _n: usize) -> f32 {
         panic!();
     }
 }
@@ -160,6 +160,9 @@ impl NodeSimilarityMatrix {
                node_color_scale: &F)
         where F: Fn((usize, usize)) -> f32
     {
+        assert!((self.na, self.nb) == (in_a.len(), in_b.len()));
+        assert!((self.na, self.nb) == (out_a.len(), out_b.len()));
+
         next_x(&self.current,
                &mut self.previous,
                in_a,
@@ -202,8 +205,8 @@ impl NodeSimilarityMatrix {
         return x;
     }
 
-    fn matrix(self) -> DMat<f32> {
-        self.current
+    pub fn matrix(&self) -> &DMat<f32> {
+        &self.current
     }
 
     pub fn num_iterations(&self) -> usize {
