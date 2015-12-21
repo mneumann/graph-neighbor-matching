@@ -86,35 +86,6 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
     return sum / max_deg as f32;
 }
 
-#[inline]
-/// Calculates x[k+1]
-///
-/// `node_color_matching(i,j)`: If two nodes `i` (of graph A) and `j` (of graph B)
-/// are of different color, this can be set to return 0.0. Alternatively a
-/// node-color distance (within 0...1) could be used to penalize.
-fn next_x<F: NodeColorMatching>(x: &DMat<f32>,
-                                new_x: &mut DMat<f32>,
-                                in_a: &[Vec<Idx>],
-                                in_b: &[Vec<Idx>],
-                                out_a: &[Vec<Idx>],
-                                out_b: &[Vec<Idx>],
-                                node_color_matching: &F) {
-    let shape = x.shape();
-    assert!(shape == new_x.shape());
-
-    for i in 0..shape.0 {
-        for j in 0..shape.1 {
-            let in_i: &[Idx] = &in_a[i];
-            let in_j: &[Idx] = &in_b[j];
-            let out_i: &[Idx] = &out_a[i];
-            let out_j: &[Idx] = &out_b[j];
-            let scale = node_color_matching.node_color_matching(i, j);
-            debug_assert!(scale >= 0.0 && scale <= 1.0);
-            new_x[(i, j)] = scale * (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) / 2.0;
-        }
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct Graph<'a> {
     in_edges: &'a [Vec<Idx>],
@@ -189,15 +160,26 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
         self.previous.approx_eq_eps(&self.current, &eps)
     }
 
-    /// Calculates the next iteration of the similarity matrix.
+    /// Calculates the next iteration of the similarity matrix (x[k+1]).
     pub fn next(&mut self) {
-        next_x(&self.current,
-               &mut self.previous,
-               self.graph_a.in_edges,
-               self.graph_b.in_edges,
-               self.graph_a.out_edges,
-               self.graph_b.out_edges,
-               &self.node_color_matching);
+        {
+            let x = &self.current;
+            let new_x = &mut self.previous;
+            let shape = x.shape();
+
+            for i in 0..shape.0 {
+                for j in 0..shape.1 {
+                    let in_i: &[Idx] = &self.graph_a.in_edges[i];
+                    let in_j: &[Idx] = &self.graph_b.in_edges[j];
+                    let out_i: &[Idx] = &self.graph_a.out_edges[i];
+                    let out_j: &[Idx] = &self.graph_b.out_edges[j];
+                    let scale = self.node_color_matching.node_color_matching(i, j);
+                    debug_assert!(scale >= 0.0 && scale <= 1.0);
+                    new_x[(i, j)] = scale * (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) / 2.0;
+                }
+            }
+        }
+
         mem::swap(&mut self.previous, &mut self.current);
         self.num_iterations += 1;
     }
