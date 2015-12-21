@@ -99,18 +99,6 @@ fn next_x<F>(x: &DMat<f32>,
     }
 }
 
-#[derive(Debug)]
-pub struct GraphSimilarityMatrix<'a> {
-    graph_a: Graph<'a>,
-    graph_b: Graph<'a>,
-    // current version of similarity matrix
-    current: DMat<f32>,
-    // previous version of similarity matrix
-    previous: DMat<f32>,
-    // current number of iterations
-    num_iters: usize,
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct Graph<'a> {
     in_edges: &'a [Vec<Idx>],
@@ -137,13 +125,25 @@ impl<'a> Graph<'a> {
     }
 }
 
-impl<'a> GraphSimilarityMatrix<'a> {
-    pub fn new<'b, F>(graph_a: Graph<'b>,
-                      graph_b: Graph<'b>,
-                      node_color_scale: &F)
-                      -> GraphSimilarityMatrix<'b>
-        where F: Fn((usize, usize)) -> f32
-    {
+#[derive(Debug)]
+pub struct GraphSimilarityMatrix<'a, F: 'a> {
+    graph_a: Graph<'a>,
+    graph_b: Graph<'a>,
+    node_color_scale: &'a F,
+    // current version of similarity matrix
+    current: DMat<f32>,
+    // previous version of similarity matrix
+    previous: DMat<f32>,
+    // current number of iterations
+    num_iterations: usize,
+}
+
+impl<'a, F> GraphSimilarityMatrix<'a, F> where F: Fn((usize, usize)) -> f32
+{
+    pub fn new<'b>(graph_a: Graph<'b>,
+                   graph_b: Graph<'b>,
+                   node_color_scale: &'b F)
+                   -> GraphSimilarityMatrix<'b, F> {
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
@@ -161,9 +161,10 @@ impl<'a> GraphSimilarityMatrix<'a> {
         GraphSimilarityMatrix {
             graph_a: graph_a,
             graph_b: graph_b,
+            node_color_scale: node_color_scale,
             current: x,
             previous: new_x,
-            num_iters: 0,
+            num_iterations: 0,
         }
     }
 
@@ -172,18 +173,16 @@ impl<'a> GraphSimilarityMatrix<'a> {
     }
 
     /// Calculates the next iteration of the similarity matrix.
-    pub fn next<F>(&mut self, node_color_scale: &F)
-        where F: Fn((usize, usize)) -> f32
-    {
+    pub fn next(&mut self) {
         next_x(&self.current,
                &mut self.previous,
                self.graph_a.in_edges,
                self.graph_b.in_edges,
                self.graph_a.out_edges,
                self.graph_b.out_edges,
-               node_color_scale);
+               self.node_color_scale);
         mem::swap(&mut self.previous, &mut self.current);
-        self.num_iters += 1;
+        self.num_iterations += 1;
     }
 
     #[inline]
@@ -191,14 +190,12 @@ impl<'a> GraphSimilarityMatrix<'a> {
     ///
     /// `eps`:   When to stop the iteration
     /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
-    pub fn iterate<F>(&mut self, eps: f32, stop_after_iter: usize, node_color_scale: &F)
-        where F: Fn((usize, usize)) -> f32
-    {
+    pub fn iterate(&mut self, eps: f32, stop_after_iter: usize) {
         for _ in 0..stop_after_iter {
             if self.in_eps(eps) {
                 break;
             }
-            self.next(node_color_scale);
+            self.next();
         }
     }
 
@@ -207,7 +204,7 @@ impl<'a> GraphSimilarityMatrix<'a> {
     }
 
     pub fn num_iterations(&self) -> usize {
-        self.num_iters
+        self.num_iterations
     }
 
     fn optimal_node_assignment(&self, n: usize) -> Vec<(usize, usize)> {
@@ -291,11 +288,11 @@ fn test_matrix() {
 
     let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
-                                          Graph::new(&in_b, &out_b),
-                                          &node_color);
-    s.iterate(0.1, 100, &node_color);
+                                           Graph::new(&in_b, &out_b),
+                                           &node_color);
+    s.iterate(0.1, 100);
 
-    println!("{:?}", s);
+    // println!("{:?}", s);
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
     assert_eq!(2, mat.nrows());
@@ -318,9 +315,9 @@ fn test_matrix_iter1() {
 
     let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
-                                          Graph::new(&in_b, &out_b),
-                                          &node_color);
-    s.iterate(0.1, 1, &node_color);
+                                           Graph::new(&in_b, &out_b),
+                                           &node_color);
+    s.iterate(0.1, 1);
 
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
@@ -340,9 +337,9 @@ fn test_score() {
 
     let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
-                                          Graph::new(&in_b, &out_b),
-                                          &node_color);
-    s.iterate(0.1, 100, &node_color);
+                                           Graph::new(&in_b, &out_b),
+                                           &node_color);
+    s.iterate(0.1, 100);
 
     assert_eq!(1, s.num_iterations());
 
