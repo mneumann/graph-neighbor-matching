@@ -12,6 +12,3 @@ git = "https://github.com/mneumann/munkres-rs.git"
 
 [dependencies]
 nalgebra = "*"
-
-[dev-dependencies]
-petgraph = "*"
