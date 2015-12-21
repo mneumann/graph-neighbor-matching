@@ -12,7 +12,58 @@ use std::cmp;
 use std::mem;
 use std::fmt;
 
+/// Node index type. Our graphs never exceed 4 billion nodes.
 pub type Idx = u32;
+
+/// Encapsulates a floating point number in the range [0, 1] including both endpoints.
+#[derive(Copy, Clone)]
+pub struct Closed01<F>(F);
+
+impl Closed01<f32> {
+    #[inline(always)]
+    pub fn new(f: f32) -> Closed01<f32> {
+        assert!(f >= 0.0 && f <= 1.0);
+        Closed01(f)
+    }
+
+    #[inline(always)]
+    pub fn zero() -> Closed01<f32> {
+        Closed01(0.0)
+    }
+
+    #[inline(always)]
+    pub fn one() -> Closed01<f32> {
+        Closed01(1.0)
+    }
+
+    #[inline(always)]
+    pub fn distance(self, other: Closed01<f32>) -> Closed01<f32> {
+        let d = (self.0 - other.0).abs();
+        debug_assert!(d >= 0.0 && d <= 1.0);
+        Closed01(d)
+    }
+
+    #[inline(always)]
+    pub fn get(self) -> f32 {
+        debug_assert!(self.0 >= 0.0 && self.0 <= 1.0);
+        self.0
+    }
+
+    #[inline(always)]
+    /// The average of two values.
+    pub fn average(a: Closed01<f32>, b: Closed01<f32>) -> Closed01<f32> {
+        let avg = (a.get() + b.get()) / 2.0;
+        debug_assert!(avg >= 0.0 && avg <= 1.0);
+        Closed01(avg)
+    }
+
+    #[inline(always)]
+    pub fn scale(&self, scalar: Closed01<f32>) -> Closed01<f32> {
+        let s = self.get() * scalar.get();
+        debug_assert!(s >= 0.0 && s <= 1.0);
+        Closed01(s)
+    }
+}
 
 trait Edges {
     /// The number of edges
@@ -23,7 +74,7 @@ trait Edges {
 
     /// Returns the nth edge weight. We expect edge weights to be
     /// normalized in the range [0, 1].
-    fn nth_edge_weight(&self, _n: usize) -> Option<f32> {
+    fn nth_edge_weight(&self, _n: usize) -> Option<Closed01<f32>> {
         None
     }
 }
@@ -47,15 +98,15 @@ pub trait NodeColorMatching: fmt::Debug {
     /// different nodes and as such the neighbor matching will try to choose
     /// a different node.
     /// NOTE: The returned value MUST be in the range [0, 1].
-    fn node_color_matching(&self, node_i: usize, node_j: usize) -> f32;
+    fn node_color_matching(&self, node_i: usize, node_j: usize) -> Closed01<f32>;
 }
 
 #[derive(Debug)]
 pub struct IgnoreNodeColors;
 
 impl NodeColorMatching for IgnoreNodeColors {
-    fn node_color_matching(&self, _node_i: usize, _node_j: usize) -> f32 {
-        1.0
+    fn node_color_matching(&self, _node_i: usize, _node_j: usize) -> Closed01<f32> {
+        Closed01::one()
     }
 }
 
@@ -65,13 +116,13 @@ impl NodeColorMatching for IgnoreNodeColors {
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
-fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
+fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> Closed01<f32> {
     let max_deg = cmp::max(n_i.len(), n_j.len());
     let min_deg = cmp::min(n_i.len(), n_j.len());
 
     if min_deg == 0 {
         // in the paper, 0/0 is defined as 1.0
-        return 1.0;
+        return Closed01::one();
     }
 
     assert!(min_deg > 0 && max_deg > 0);
@@ -86,7 +137,7 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
 
     let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[mapidx(ab)]);
 
-    return sum / max_deg as f32;
+    return Closed01::new(sum / max_deg as f32);
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -139,12 +190,12 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
         // B.edges().
         let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
-                let scale = node_color_matching.node_color_matching(i, j);
-                debug_assert!(scale >= 0.0 && scale <= 1.0);
-                scale
+                // this is normally set to 1.0 (i.e. without node color matching).
+                node_color_matching.node_color_matching(i, j)
             } else {
-                0.0
+                Closed01::zero()
             }
+            .get()
         });
 
         let new_x: DMat<f32> = DMat::new_zeros(graph_a.num_nodes(), graph_b.num_nodes());
@@ -177,8 +228,10 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
                     let out_i: &[Idx] = &self.graph_a.out_edges[i];
                     let out_j: &[Idx] = &self.graph_b.out_edges[j];
                     let scale = self.node_color_matching.node_color_matching(i, j);
-                    debug_assert!(scale >= 0.0 && scale <= 1.0);
-                    new_x[(i, j)] = scale * (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) / 2.0;
+                    new_x[(i, j)] = Closed01::average(s_next(in_i, in_j, x),
+                                                      s_next(out_i, out_j, x))
+                                        .scale(scale)
+                                        .get()
                 }
             }
         }
@@ -257,9 +310,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
         // we sum up all edge weight scores
         let sum: f32 = node_assignment.iter().fold(0.0, |acc, &(node_i, node_j)| {
             let score_ij = self.score_outgoing_edge_weights_of(node_i, node_j);
-            debug_assert!(score_ij >= 0.0 && score_ij <= 1.0);
-
-            acc + score_ij
+            acc + score_ij.get()
         });
 
         debug_assert!(sum >= 0.0 && sum <= n as f32);
@@ -278,7 +329,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// Calculate a similarity measure of outgoing of nodes `node_i` of graph A and `node_j` of
     /// graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
     /// similarity.
-    fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> f32 {
+    fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> Closed01<f32> {
         let out_i: &[Idx] = &self.graph_a.out_edges[node_i];
         let out_j: &[Idx] = &self.graph_b.out_edges[node_j];
 
@@ -286,25 +337,23 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
         if max_deg == 0 {
             // Nodes with no edges are perfectly similar
-            return 1.0;
+            return Closed01::one();
         }
 
         let mut w = WeightMatrix::from_fn(max_deg, |(i, j)| {
             match (out_i.nth_edge_weight(i), out_j.nth_edge_weight(j)) {
                 (Some(w_i), Some(w_j)) => {
-                    assert!(w_i >= 0.0 && w_i <= 1.0);
-                    assert!(w_j >= 0.0 && w_j <= 1.0);
-                    let delta = (w_i - w_j).abs();
-                    assert!(delta >= 0.0 && delta <= 1.0);
+                    let delta = w_i.distance(w_j);
                     delta
                 }
                 _ => {
                     // Maximum penalty between two weighted edges
                     // NOTE: missing edges could be penalized more, but we already
                     // penalize for that in the node similarity measure.
-                    1.0
+                    Closed01::one()
                 }
             }
+            .get()
         });
 
         // calculate optimal edge weight assignement.
@@ -321,51 +370,53 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
         // no matching.
         let score = 1.0 - (sum / max_deg as f32);
 
-        debug_assert!(score >= 0.0 && score <= 1.0);
-
-        score
+        Closed01::new(score)
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Used as default in the paper.
-    pub fn score_sum_norm_min_degree(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+    pub fn score_sum_norm_min_degree(&self,
+                                     node_assignment: Option<&[(usize, usize)]>)
+                                     -> Closed01<f32> {
         let n = self.min_nodes();
         if n > 0 {
-            self.score_optimal_sum(node_assignment) / n as f32
+            Closed01::new(self.score_optimal_sum(node_assignment) / n as f32)
         } else {
-            0.0
+            Closed01::zero()
         }
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min degree of both graphs.
     /// Penalizes the difference in size of graphs.
-    pub fn score_sum_norm_max_degree(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+    pub fn score_sum_norm_max_degree(&self,
+                                     node_assignment: Option<&[(usize, usize)]>)
+                                     -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
 
         if n > 0 {
             assert!(m > 0);
-            self.score_optimal_sum(node_assignment) / m as f32
+            Closed01::new(self.score_optimal_sum(node_assignment) / m as f32)
         } else {
-            0.0
+            Closed01::zero()
         }
     }
 
     /// Calculates the average over the whole node similarity matrix. This is faster,
     /// as no assignment has to be found. "Graphs with greater number of automorphisms
     /// would be considered to be more self-similar than graphs without automorphisms."
-    pub fn score_average(&self) -> f32 {
+    pub fn score_average(&self) -> Closed01<f32> {
         let n = self.min_nodes();
         if n > 0 {
             let items = self.current.as_vec();
             let sum: f32 = items.iter().fold(0.0, |acc, &v| acc + v);
             let len = items.len();
             assert!(len > 0);
-            sum / len as f32
+            Closed01::new(sum / len as f32)
         } else {
-            0.0
+            Closed01::zero()
         }
     }
 }
@@ -435,8 +486,8 @@ fn test_score() {
     assert_eq!(1, s.num_iterations());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_min_degree(None));
+    assert_eq!(1.0, s.score_sum_norm_min_degree(None).get());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_max_degree(None));
+    assert_eq!(1.0, s.score_sum_norm_max_degree(None).get());
 }
