@@ -121,42 +121,45 @@ pub struct Graph<'a> {
 
 impl<'a> Graph<'a> {
     pub fn new<'b>(in_edges: &'b [Vec<Idx>], out_edges: &'b [Vec<Idx>]) -> Graph<'b> {
+        assert!(in_edges.len() == out_edges.len());
         Graph {
             in_edges: in_edges,
             out_edges: out_edges,
         }
     }
+
+    fn num_nodes(&self) -> usize {
+        let n = self.in_edges.len();
+        assert!(n == self.out_edges.len());
+        n
+    }
+
+    fn node_degree(&self, node_idx: usize) -> usize {
+        self.in_edges[node_idx].len() + self.out_edges[node_idx].len()
+    }
 }
 
 impl NodeSimilarityMatrix {
-    pub fn init<F>(graph_a: Graph, graph_b: Graph, node_color_scale: &F) -> NodeSimilarityMatrix
+    pub fn new<F>(graph_a: Graph, graph_b: Graph, node_color_scale: &F) -> NodeSimilarityMatrix
         where F: Fn((usize, usize)) -> f32
     {
-        let in_a = graph_a.in_edges;
-        let in_b = graph_b.in_edges;
-        let out_a = graph_a.out_edges;
-        let out_b = graph_b.out_edges;
-
-        let (na, nb) = (in_a.len(), in_b.len());
-        assert!((na, nb) == (out_a.len(), out_b.len()));
-
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
-        let x: DMat<f32> = DMat::from_fn(na, nb, |i, j| {
+        let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             node_color_scale((i, j)) *
-            if in_a[i].len() + out_a[i].len() > 0 && in_b[j].len() + out_b[j].len() > 0 {
+            if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 1.0
             } else {
                 0.0
             }
         });
 
-        let new_x: DMat<f32> = DMat::new_zeros(na, nb);
+        let new_x: DMat<f32> = DMat::new_zeros(graph_a.num_nodes(), graph_b.num_nodes());
 
         NodeSimilarityMatrix {
-            na: na,
-            nb: nb,
+            na: graph_a.num_nodes(),
+            nb: graph_b.num_nodes(),
             current: x,
             previous: new_x,
             num_iters: 0,
@@ -170,9 +173,6 @@ impl NodeSimilarityMatrix {
     fn next<F>(&mut self, graph_a: Graph, graph_b: Graph, node_color_scale: &F)
         where F: Fn((usize, usize)) -> f32
     {
-        assert!((self.na, self.nb) == (graph_a.in_edges.len(), graph_b.in_edges.len()));
-        assert!((self.na, self.nb) == (graph_a.out_edges.len(), graph_b.out_edges.len()));
-
         next_x(&self.current,
                &mut self.previous,
                graph_a.in_edges,
@@ -201,7 +201,7 @@ impl NodeSimilarityMatrix {
                    -> NodeSimilarityMatrix
         where F: Fn((usize, usize)) -> f32
     {
-        let mut x = NodeSimilarityMatrix::init(graph_a, graph_b, node_color_scale);
+        let mut x = NodeSimilarityMatrix::new(graph_a, graph_b, node_color_scale);
 
         for _ in 0..stop_after_iter {
             if x.in_eps(eps) {
