@@ -189,9 +189,9 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     #[inline]
     /// Iteratively calculate the similarity matrix.
     ///
-    /// `eps`:   When to stop the iteration
     /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
-    pub fn iterate(&mut self, eps: f32, stop_after_iter: usize) {
+    /// `eps`:   When to stop the iteration
+    pub fn iterate(&mut self, stop_after_iter: usize, eps: f32) {
         for _ in 0..stop_after_iter {
             if self.in_eps(eps) {
                 break;
@@ -223,9 +223,9 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
     /// Calculate a measure how good the edge weights match up.
     ///
-    /// We start by calculating the optimal node assignment between nodes of graph A and
-    /// graph B, then compare all outgoing edges of similar nodes by again using an
-    /// assignment.
+    /// We start by calculating the optimal node assignment between nodes of graph A and graph B,
+    /// then compare all outgoing edges of similar-assigned nodes by again using an assignment
+    /// between the edge weight differences of all edge pairs.
     pub fn score_outgoing_edge_weights(&self) -> f32 {
         // XXX
         0.0
@@ -290,7 +290,7 @@ fn test_matrix() {
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
                                            IgnoreNodeColors);
-    s.iterate(0.1, 100);
+    s.iterate(100, 0.1);
 
     println!("{:?}", s);
     assert_eq!(1, s.num_iterations());
@@ -316,7 +316,7 @@ fn test_matrix_iter1() {
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
                                            IgnoreNodeColors);
-    s.iterate(0.1, 1);
+    s.iterate(1, 0.1);
 
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
@@ -337,7 +337,7 @@ fn test_score() {
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
                                            IgnoreNodeColors);
-    s.iterate(0.1, 100);
+    s.iterate(100, 0.1);
 
     assert_eq!(1, s.num_iterations());
 
