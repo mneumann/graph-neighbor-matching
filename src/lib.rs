@@ -106,7 +106,7 @@ pub struct Graph<'a> {
 }
 
 impl<'a> Graph<'a> {
-    pub fn new<'b>(in_edges: &'b [Vec<Idx>], out_edges: &'b [Vec<Idx>]) -> Graph<'b> {
+    pub fn new(in_edges: &'a [Vec<Idx>], out_edges: &'a [Vec<Idx>]) -> Graph<'a> {
         assert!(in_edges.len() == out_edges.len());
         Graph {
             in_edges: in_edges,
@@ -140,10 +140,10 @@ pub struct GraphSimilarityMatrix<'a, F: 'a> {
 
 impl<'a, F> GraphSimilarityMatrix<'a, F> where F: Fn((usize, usize)) -> f32
 {
-    pub fn new<'b>(graph_a: Graph<'b>,
-                   graph_b: Graph<'b>,
-                   node_color_scale: &'b F)
-                   -> GraphSimilarityMatrix<'b, F> {
+    pub fn new(graph_a: Graph<'a>,
+               graph_b: Graph<'a>,
+               node_color_scale: &'a F)
+               -> GraphSimilarityMatrix<'a, F> {
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
