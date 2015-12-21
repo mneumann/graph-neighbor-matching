@@ -113,15 +113,30 @@ pub struct NodeSimilarityMatrix {
     num_iters: usize,
 }
 
+#[derive(Copy, Clone)]
+pub struct Graph<'a> {
+    in_edges: &'a [Vec<Idx>],
+    out_edges: &'a [Vec<Idx>],
+}
+
+impl<'a> Graph<'a> {
+    pub fn new<'b>(in_edges: &'b [Vec<Idx>], out_edges: &'b [Vec<Idx>]) -> Graph<'b> {
+        Graph {
+            in_edges: in_edges,
+            out_edges: out_edges,
+        }
+    }
+}
+
 impl NodeSimilarityMatrix {
-    pub fn init<F>(in_a: &[Vec<Idx>],
-                   in_b: &[Vec<Idx>],
-                   out_a: &[Vec<Idx>],
-                   out_b: &[Vec<Idx>],
-                   node_color_scale: &F)
-                   -> NodeSimilarityMatrix
+    pub fn init<F>(graph_a: Graph, graph_b: Graph, node_color_scale: &F) -> NodeSimilarityMatrix
         where F: Fn((usize, usize)) -> f32
     {
+        let in_a = graph_a.in_edges;
+        let in_b = graph_b.in_edges;
+        let out_a = graph_a.out_edges;
+        let out_b = graph_b.out_edges;
+
         let (na, nb) = (in_a.len(), in_b.len());
         assert!((na, nb) == (out_a.len(), out_b.len()));
 
@@ -152,23 +167,18 @@ impl NodeSimilarityMatrix {
         self.previous.approx_eq_eps(&self.current, &eps)
     }
 
-    fn next<F>(&mut self,
-               in_a: &[Vec<Idx>],
-               in_b: &[Vec<Idx>],
-               out_a: &[Vec<Idx>],
-               out_b: &[Vec<Idx>],
-               node_color_scale: &F)
+    fn next<F>(&mut self, graph_a: Graph, graph_b: Graph, node_color_scale: &F)
         where F: Fn((usize, usize)) -> f32
     {
-        assert!((self.na, self.nb) == (in_a.len(), in_b.len()));
-        assert!((self.na, self.nb) == (out_a.len(), out_b.len()));
+        assert!((self.na, self.nb) == (graph_a.in_edges.len(), graph_b.in_edges.len()));
+        assert!((self.na, self.nb) == (graph_a.out_edges.len(), graph_b.out_edges.len()));
 
         next_x(&self.current,
                &mut self.previous,
-               in_a,
-               in_b,
-               out_a,
-               out_b,
+               graph_a.in_edges,
+               graph_b.in_edges,
+               graph_a.out_edges,
+               graph_b.out_edges,
                node_color_scale);
         mem::swap(&mut self.previous, &mut self.current);
         self.num_iters += 1;
@@ -183,23 +193,21 @@ impl NodeSimilarityMatrix {
     /// `out_b`: Outgoing edge list for each node of graph B
     /// `eps`:   When to stop the iteration
     /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
-    pub fn calc<F>(in_a: &[Vec<Idx>],
-                   in_b: &[Vec<Idx>],
-                   out_a: &[Vec<Idx>],
-                   out_b: &[Vec<Idx>],
+    pub fn calc<F>(graph_a: Graph,
+                   graph_b: Graph,
                    eps: f32,
                    stop_after_iter: usize,
                    node_color_scale: &F)
                    -> NodeSimilarityMatrix
         where F: Fn((usize, usize)) -> f32
     {
-        let mut x = NodeSimilarityMatrix::init(in_a, in_b, out_a, out_b, node_color_scale);
+        let mut x = NodeSimilarityMatrix::init(graph_a, graph_b, node_color_scale);
 
         for _ in 0..stop_after_iter {
             if x.in_eps(eps) {
                 break;
             }
-            x.next(in_a, in_b, out_a, out_b, node_color_scale);
+            x.next(graph_a, graph_b, node_color_scale);
         }
 
         return x;
@@ -292,7 +300,11 @@ fn test_matrix() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
+    let s = NodeSimilarityMatrix::calc(Graph::new(&in_a, &out_a),
+                                       Graph::new(&in_b, &out_b),
+                                       0.1,
+                                       100,
+                                       &|_| 1.0);
     println!("{:?}", s);
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
@@ -314,7 +326,11 @@ fn test_matrix_iter1() {
     let in_b = vec![vec![0, 0, 0, 0, 0]];
     let out_b = vec![vec![0, 0, 0, 0, 0]];
 
-    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 1, &|_| 1.0);
+    let s = NodeSimilarityMatrix::calc(Graph::new(&in_a, &out_a),
+                                       Graph::new(&in_b, &out_b),
+                                       0.1,
+                                       1,
+                                       &|_| 1.0);
     assert_eq!(1, s.num_iterations());
     let mat = s.matrix();
     assert_eq!(3.0 / 5.0, mat[(0, 0)]);
@@ -331,7 +347,11 @@ fn test_score() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let s = NodeSimilarityMatrix::calc(&in_a, &in_b, &out_a, &out_b, 0.1, 100, &|_| 1.0);
+    let s = NodeSimilarityMatrix::calc(Graph::new(&in_a, &out_a),
+                                       Graph::new(&in_b, &out_b),
+                                       0.1,
+                                       100,
+                                       &|_| 1.0);
 
     assert_eq!(1, s.num_iterations());
 
