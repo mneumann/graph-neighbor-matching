@@ -38,6 +38,24 @@ impl<'a> Edges for &'a [Idx] {
     }
 }
 
+pub trait NodeColorMatching {
+    /// Determines how close or distant two nodes `node_i` of graph A,
+    /// and `node_j` of graph B are. If they have different colors,
+    /// this method could return 0.0 to describe that they are completely
+    /// different nodes and as such the neighbor matching will try to choose
+    /// a different node.
+    /// NOTE: The returned value MUST be in the range [0, 1].
+    fn node_color_matching(&self, node_i: usize, node_j: usize) -> f32;
+}
+
+pub struct IgnoreNodeColors;
+
+impl NodeColorMatching for IgnoreNodeColors {
+    fn node_color_matching(&self, _node_i: usize, _node_j: usize) -> f32 {
+        1.0
+    }
+}
+
 #[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
 ///
@@ -71,18 +89,16 @@ fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> f32 {
 #[inline]
 /// Calculates x[k+1]
 ///
-/// `node_color_scale((i,j))`: If two nodes `i` (of graph A) and `j` (of graph B)
+/// `node_color_matching(i,j)`: If two nodes `i` (of graph A) and `j` (of graph B)
 /// are of different color, this can be set to return 0.0. Alternatively a
 /// node-color distance (within 0...1) could be used to penalize.
-fn next_x<F>(x: &DMat<f32>,
-             new_x: &mut DMat<f32>,
-             in_a: &[Vec<Idx>],
-             in_b: &[Vec<Idx>],
-             out_a: &[Vec<Idx>],
-             out_b: &[Vec<Idx>],
-             node_color_scale: F)
-    where F: Fn((usize, usize)) -> f32
-{
+fn next_x<F: NodeColorMatching>(x: &DMat<f32>,
+                                new_x: &mut DMat<f32>,
+                                in_a: &[Vec<Idx>],
+                                in_b: &[Vec<Idx>],
+                                out_a: &[Vec<Idx>],
+                                out_b: &[Vec<Idx>],
+                                node_color_matching: &F) {
     let shape = x.shape();
     assert!(shape == new_x.shape());
 
@@ -92,9 +108,9 @@ fn next_x<F>(x: &DMat<f32>,
             let in_j: &[Idx] = &in_b[j];
             let out_i: &[Idx] = &out_a[i];
             let out_j: &[Idx] = &out_b[j];
-            new_x[(i, j)] = node_color_scale((i, j)) *
-                            (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) /
-                            2.0;
+            let scale = node_color_matching.node_color_matching(i, j);
+            debug_assert!(scale >= 0.0 && scale <= 1.0);
+            new_x[(i, j)] = scale * (s_next(in_i, in_j, x) + s_next(out_i, out_j, x)) / 2.0;
         }
     }
 }
@@ -126,10 +142,10 @@ impl<'a> Graph<'a> {
 }
 
 #[derive(Debug)]
-pub struct GraphSimilarityMatrix<'a, F: 'a> {
+pub struct GraphSimilarityMatrix<'a, F: NodeColorMatching + 'a> {
     graph_a: Graph<'a>,
     graph_b: Graph<'a>,
-    node_color_scale: &'a F,
+    node_color_matching: F,
     // current version of similarity matrix
     current: DMat<f32>,
     // previous version of similarity matrix
@@ -138,19 +154,20 @@ pub struct GraphSimilarityMatrix<'a, F: 'a> {
     num_iterations: usize,
 }
 
-impl<'a, F> GraphSimilarityMatrix<'a, F> where F: Fn((usize, usize)) -> f32
+impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 {
     pub fn new(graph_a: Graph<'a>,
                graph_b: Graph<'a>,
-               node_color_scale: &'a F)
+               node_color_matching: F)
                -> GraphSimilarityMatrix<'a, F> {
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
         let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
-            node_color_scale((i, j)) *
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
-                1.0
+                let scale = node_color_matching.node_color_matching(i, j);
+                debug_assert!(scale >= 0.0 && scale <= 1.0);
+                scale
             } else {
                 0.0
             }
@@ -161,7 +178,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: Fn((usize, usize)) -> f32
         GraphSimilarityMatrix {
             graph_a: graph_a,
             graph_b: graph_b,
-            node_color_scale: node_color_scale,
+            node_color_matching: node_color_matching,
             current: x,
             previous: new_x,
             num_iterations: 0,
@@ -180,7 +197,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: Fn((usize, usize)) -> f32
                self.graph_b.in_edges,
                self.graph_a.out_edges,
                self.graph_b.out_edges,
-               self.node_color_scale);
+               &self.node_color_matching);
         mem::swap(&mut self.previous, &mut self.current);
         self.num_iterations += 1;
     }
@@ -286,10 +303,9 @@ fn test_matrix() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
-                                           &node_color);
+                                           IgnoreNodeColors);
     s.iterate(0.1, 100);
 
     // println!("{:?}", s);
@@ -313,10 +329,9 @@ fn test_matrix_iter1() {
     let in_b = vec![vec![0, 0, 0, 0, 0]];
     let out_b = vec![vec![0, 0, 0, 0, 0]];
 
-    let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
-                                           &node_color);
+                                           IgnoreNodeColors);
     s.iterate(0.1, 1);
 
     assert_eq!(1, s.num_iterations());
@@ -335,10 +350,9 @@ fn test_score() {
     let in_b = vec![vec![1], vec![]];
     let out_b = vec![vec![], vec![0]];
 
-    let node_color = |_| 1.0;
     let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                            Graph::new(&in_b, &out_b),
-                                           &node_color);
+                                           IgnoreNodeColors);
     s.iterate(0.1, 100);
 
     assert_eq!(1, s.num_iterations());
