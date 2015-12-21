@@ -100,7 +100,7 @@ fn next_x<F>(x: &DMat<f32>,
 }
 
 #[derive(Debug)]
-pub struct NodeSimilarityMatrix<'a> {
+pub struct GraphSimilarityMatrix<'a> {
     graph_a: Graph<'a>,
     graph_b: Graph<'a>,
     // current version of similarity matrix
@@ -137,11 +137,11 @@ impl<'a> Graph<'a> {
     }
 }
 
-impl<'a> NodeSimilarityMatrix<'a> {
+impl<'a> GraphSimilarityMatrix<'a> {
     pub fn new<'b, F>(graph_a: Graph<'b>,
                       graph_b: Graph<'b>,
                       node_color_scale: &F)
-                      -> NodeSimilarityMatrix<'b>
+                      -> GraphSimilarityMatrix<'b>
         where F: Fn((usize, usize)) -> f32
     {
         // `x` is the node-similarity matrix.
@@ -158,7 +158,7 @@ impl<'a> NodeSimilarityMatrix<'a> {
 
         let new_x: DMat<f32> = DMat::new_zeros(graph_a.num_nodes(), graph_b.num_nodes());
 
-        NodeSimilarityMatrix {
+        GraphSimilarityMatrix {
             graph_a: graph_a,
             graph_b: graph_b,
             current: x,
@@ -290,7 +290,7 @@ fn test_matrix() {
     let out_b = vec![vec![], vec![0]];
 
     let node_color = |_| 1.0;
-    let mut s = NodeSimilarityMatrix::new(Graph::new(&in_a, &out_a),
+    let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                           Graph::new(&in_b, &out_b),
                                           &node_color);
     s.iterate(0.1, 100, &node_color);
@@ -317,7 +317,7 @@ fn test_matrix_iter1() {
     let out_b = vec![vec![0, 0, 0, 0, 0]];
 
     let node_color = |_| 1.0;
-    let mut s = NodeSimilarityMatrix::new(Graph::new(&in_a, &out_a),
+    let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                           Graph::new(&in_b, &out_b),
                                           &node_color);
     s.iterate(0.1, 1, &node_color);
@@ -339,7 +339,7 @@ fn test_score() {
     let out_b = vec![vec![], vec![0]];
 
     let node_color = |_| 1.0;
-    let mut s = NodeSimilarityMatrix::new(Graph::new(&in_a, &out_a),
+    let mut s = GraphSimilarityMatrix::new(Graph::new(&in_a, &out_a),
                                           Graph::new(&in_b, &out_b),
                                           &node_color);
     s.iterate(0.1, 100, &node_color);
