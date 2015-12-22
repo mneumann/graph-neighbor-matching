@@ -18,7 +18,7 @@ use closed01::Closed01;
 
 trait Edges {
     /// The number of edges
-    fn len(&self) -> usize;
+    fn num_edges(&self) -> usize;
 
     /// Returns the target node of the nth-edge
     fn nth_edge(&self, n: usize) -> Option<usize>;
@@ -47,9 +47,8 @@ impl Edge {
 
 impl<'a> Edges for &'a [Edge] {
     #[inline]
-    fn len(&self) -> usize {
-        let x: &[Edge] = self;
-        x.len()
+    fn num_edges(&self) -> usize {
+        self.len()
     }
     #[inline]
     fn nth_edge(&self, n: usize) -> Option<usize> {
@@ -124,8 +123,10 @@ impl NodeColorMatching for IgnoreNodeColors {
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
 fn s_next<T: Edges>(n_i: T, n_j: T, x: &DMat<f32>) -> Closed01<f32> {
-    let max_deg = cmp::max(n_i.len(), n_j.len());
-    let min_deg = cmp::min(n_i.len(), n_j.len());
+    let max_deg = cmp::max(n_i.num_edges(), n_j.num_edges());
+    let min_deg = cmp::min(n_i.num_edges(), n_j.num_edges());
+
+    debug_assert!(min_deg <= max_deg);
 
     if min_deg == 0 {
         // in the paper, 0/0 is defined as 1.0
