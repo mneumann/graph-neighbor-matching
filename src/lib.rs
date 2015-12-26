@@ -207,13 +207,13 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
             for i in 0..shape.0 {
                 for j in 0..shape.1 {
                     let scale = self.node_color_matching.node_color_matching(i, j);
-                    new_x[(i, j)] = Closed01::average(s_next(self.graph_a.in_edges_of(i),
-                                                             self.graph_b.in_edges_of(j),
-                                                             x),
-                                                      s_next(self.graph_a.out_edges_of(i),
-                                                             self.graph_b.out_edges_of(j),
-                                                             x))
-                                        .scale(scale)
+                    new_x[(i, j)] = Closed01::avg(s_next(self.graph_a.in_edges_of(i),
+                                                         self.graph_b.in_edges_of(j),
+                                                         x),
+                                                  s_next(self.graph_a.out_edges_of(i),
+                                                         self.graph_b.out_edges_of(j),
+                                                         x))
+                                        .mul(scale)
                                         .get()
                 }
             }
