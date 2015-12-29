@@ -284,7 +284,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// We start by calculating the optimal node assignment between nodes of graph A and graph B,
     /// then compare all outgoing edges of similar-assigned nodes by again using an assignment
     /// between the edge-weight differences of all edge pairs.
-    pub fn score_outgoing_edge_weights(&self, node_assignment: &[(usize, usize)]) -> f32 {
+    pub fn score_outgoing_edge_weights(&self, node_assignment: &[(usize, usize)]) -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
 
@@ -298,15 +298,13 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
         debug_assert!(sum >= 0.0 && sum <= n as f32);
 
-        // to penalize for missing nodes, we divide by the maximum of number of nodes `m`.
-
         debug_assert!(m >= n);
 
+        // to penalize for missing nodes, we divide by the maximum number of nodes `m`.
+        // XXX: Likewise we could divide by the minimum number of nodes.
         let score = sum / m as f32;
 
-        debug_assert!(score >= 0.0 && score <= 1.0);
-
-        score
+        Closed01::new(score)
     }
 
     /// Calculate a similarity measure of outgoing of nodes `node_i` of graph A and `node_j` of
