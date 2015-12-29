@@ -162,6 +162,15 @@ pub struct GraphSimilarityMatrix<'a, F: NodeColorMatching + 'a> {
     num_iterations: usize,
 }
 
+#[derive(Debug)]
+pub enum ScoreNorm {
+    /// Divide by minimum graph or node degree
+    MinDegree,
+
+    /// Divide by maximum graph or node degree
+    MaxDegree,
+}
+
 impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 {
     pub fn new(graph_a: Graph<'a>,
@@ -284,9 +293,13 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     /// We start by calculating the optimal node assignment between nodes of graph A and graph B,
     /// then compare all outgoing edges of similar-assigned nodes by again using an assignment
     /// between the edge-weight differences of all edge pairs.
-    pub fn score_outgoing_edge_weights(&self, node_assignment: &[(usize, usize)]) -> Closed01<f32> {
+    pub fn score_outgoing_edge_weights(&self,
+                                       node_assignment: &[(usize, usize)],
+                                       norm: ScoreNorm)
+                                       -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
+        debug_assert!(m >= n);
 
         assert!(node_assignment.len() == n);
 
@@ -296,15 +309,15 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
             acc + score_ij.get()
         });
 
-        debug_assert!(sum >= 0.0 && sum <= n as f32);
+        assert!(sum >= 0.0 && sum <= n as f32);
 
-        debug_assert!(m >= n);
+        match norm {
+            // Not penalize missing nodes.
+            ScoreNorm::MinDegree => Closed01::new(sum / n as f32),
 
-        // to penalize for missing nodes, we divide by the maximum number of nodes `m`.
-        // XXX: Likewise we could divide by the minimum number of nodes.
-        let score = sum / m as f32;
-
-        Closed01::new(score)
+            // To penalize for missing nodes, divide by the maximum number of nodes `m`.
+            ScoreNorm::MaxDegree => Closed01::new(sum / m as f32),
+        }
     }
 
     /// Calculate a similarity measure of outgoing of nodes `node_i` of graph A and `node_j` of
@@ -355,31 +368,28 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
-    /// by the min degree of both graphs.
-    /// Used as default in the paper.
-    pub fn score_sum_norm_min_degree(&self,
-                                     node_assignment: Option<&[(usize, usize)]>)
-                                     -> Closed01<f32> {
-        let n = self.min_nodes();
-        if n > 0 {
-            Closed01::new(self.score_optimal_sum(node_assignment) / n as f32)
-        } else {
-            Closed01::zero()
-        }
-    }
-
-    /// Sums the optimal assignment of the node similarities and normalizes (divides)
-    /// by the min degree of both graphs.
-    /// Penalizes the difference in size of graphs.
-    pub fn score_sum_norm_max_degree(&self,
-                                     node_assignment: Option<&[(usize, usize)]>)
-                                     -> Closed01<f32> {
+    /// by the min/max degree of both graphs.
+    /// ScoreNorm::MinDegree is used as default in the paper.
+    pub fn score_optimal_sum_norm(&self,
+                                  node_assignment: Option<&[(usize, usize)]>,
+                                  norm: ScoreNorm)
+                                  -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
 
+
         if n > 0 {
             assert!(m > 0);
-            Closed01::new(self.score_optimal_sum(node_assignment) / m as f32)
+            let sum = self.score_optimal_sum(node_assignment);
+            assert!(sum >= 0.0 && sum <= n as f32);
+
+            match norm {
+                // Not penalize missing nodes.
+                ScoreNorm::MinDegree => Closed01::new(sum / n as f32),
+
+                // To penalize for missing nodes, divide by the maximum number of nodes `m`.
+                ScoreNorm::MaxDegree => Closed01::new(sum / m as f32),
+            }
         } else {
             Closed01::zero()
         }
@@ -472,8 +482,10 @@ fn test_score() {
     assert_eq!(1, s.num_iterations());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_min_degree(None).get());
+    assert_eq!(1.0,
+               s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get());
 
     // The score is 1.0 <=> A and B are isomorphic
-    assert_eq!(1.0, s.score_sum_norm_max_degree(None).get());
+    assert_eq!(1.0,
+               s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get());
 }
