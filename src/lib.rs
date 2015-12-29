@@ -10,7 +10,7 @@ extern crate munkres;
 extern crate closed01;
 
 use nalgebra::{DMat, Shape, ApproxEq};
-use munkres::{Weights, WeightMatrix, solve_assignment};
+use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 use std::fmt;
@@ -334,12 +334,10 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
             return Closed01::one();
         }
 
-        let mut w = WeightMatrix::from_fn(max_deg, |(i, j)| {
+        // Calculates the edge weight distance between edges i and j.
+        let edge_weight_distance = &|(i, j)| {
             match (out_i.nth_edge_weight(i), out_j.nth_edge_weight(j)) {
-                (Some(w_i), Some(w_j)) => {
-                    let delta = w_i.distance(w_j);
-                    delta
-                }
+                (Some(w_i), Some(w_j)) => w_i.distance(w_j),
                 _ => {
                     // Maximum penalty between two weighted edges
                     // NOTE: missing edges could be penalized more, but we already
@@ -348,7 +346,9 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
                 }
             }
             .get()
-        });
+        };
+
+        let mut w = WeightMatrix::from_fn(max_deg, edge_weight_distance);
 
         // calculate optimal edge weight assignement.
         let assignment = solve_assignment(&mut w);
@@ -356,7 +356,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
         // The sum is the sum of all weight differences on the optimal `path`.
         // It's range is from 0.0 (perfect matching) to max_deg*1.0 (bad matching).
-        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| acc + w.element_at(ij));
+        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| acc + edge_weight_distance(ij));
 
         debug_assert!(sum >= 0.0 && sum <= max_deg as f32);
 
