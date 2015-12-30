@@ -362,9 +362,7 @@ impl<'a, F> GraphSimilarityMatrix<'a, F> where F: NodeColorMatching
 
         // we "invert" the normalized sum so that 1.0 means perfect matching and 0.0
         // no matching.
-        let score = 1.0 - (sum / max_deg as f32);
-
-        Closed01::new(score)
+        Closed01::new(sum / max_deg as f32).inv()
     }
 
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
