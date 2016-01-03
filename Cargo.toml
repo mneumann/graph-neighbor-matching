@@ -1,6 +1,6 @@
 [package]
 name = "graph-neighbor-matching"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Michael Neumann <mneumann@ntecs.de>"]
 license = "MIT"
 repository = "https://github.com/mneumann/graph-neighbor-matching"
@@ -10,4 +10,4 @@ keywords = ["graph", "algorithm", "similarity"]
 [dependencies]
 nalgebra = "0.4.0"
 munkres = "0.1.0"
-closed01 = "0.1.0"
+closed01 = "0.3.0"
