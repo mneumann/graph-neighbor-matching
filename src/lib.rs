@@ -162,7 +162,7 @@ pub struct GraphSimilarityMatrix<'a, F: NodeColorMatching + 'a> {
     num_iterations: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ScoreNorm {
     /// Divide by minimum graph or node degree
     MinDegree,
