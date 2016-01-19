@@ -1,11 +1,13 @@
 [package]
 name = "graph-neighbor-matching"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Michael Neumann <mneumann@ntecs.de>"]
 license = "MIT"
 repository = "https://github.com/mneumann/graph-neighbor-matching"
 description = "Graph similarity score using neighbor matching"
 keywords = ["graph", "algorithm", "similarity"]
+
+include = ["src/lib.rs", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
 nalgebra = "0.4.0"
