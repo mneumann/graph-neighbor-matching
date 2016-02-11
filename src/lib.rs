@@ -330,6 +330,12 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
     }
 }
 
+pub fn similarity_max_degree<T:Graph>(a: &T, b: &T, num_iters: usize, eps: f32) -> Closed01<f32> {
+    let mut s = SimilarityMatrix::new(a, b, IgnoreNodeColors);
+    s.iterate(num_iters, eps);
+    s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree)
+}
+
 #[cfg(test)]
 mod tests {
     use super::graph::{Edge, EdgeList, Node, OwnedGraph, GraphBuilder};
