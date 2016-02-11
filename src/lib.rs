@@ -8,6 +8,7 @@
 extern crate nalgebra;
 extern crate munkres;
 extern crate closed01;
+extern crate petgraph;
 
 use nalgebra::{DMat, Shape, ApproxEq};
 use munkres::{WeightMatrix, solve_assignment};
@@ -330,7 +331,7 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
     }
 }
 
-pub fn similarity_max_degree<T:Graph>(a: &T, b: &T, num_iters: usize, eps: f32) -> Closed01<f32> {
+pub fn similarity_max_degree<T: Graph>(a: &T, b: &T, num_iters: usize, eps: f32) -> Closed01<f32> {
     let mut s = SimilarityMatrix::new(a, b, IgnoreNodeColors);
     s.iterate(num_iters, eps);
     s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree)

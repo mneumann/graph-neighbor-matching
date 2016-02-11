@@ -13,3 +13,4 @@ include = ["src/lib.rs", "Cargo.toml", "README.md", "LICENSE"]
 nalgebra = "0.4.0"
 munkres = "0.1.0"
 closed01 = "0.3.0"
+petgraph = "0.2.2"

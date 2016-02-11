@@ -2,7 +2,8 @@ use super::traits::{EdgeWeight, Edges, Graph};
 use closed01::Closed01;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
-
+use petgraph::{EdgeDirection, Directed};
+use petgraph::Graph as PetGraph;
 
 #[derive(Debug)]
 pub struct Edge {
@@ -91,6 +92,21 @@ impl OwnedGraph {
         OwnedGraph { nodes: nodes }
     }
 
+    pub fn from_petgraph(pg: &PetGraph<(), (), Directed>) -> OwnedGraph {
+        OwnedGraph {
+            nodes: pg.node_indices()
+                     .map(|i| {
+                         Node::new(EdgeList::new(pg.edges_directed(i, EdgeDirection::Incoming)
+                                                   .map(|(j, _w)| Edge::new_unweighted(j.index()))
+                                                   .collect()),
+                                   EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
+                                                   .map(|(j, _w)| Edge::new_unweighted(j.index()))
+                                                   .collect()))
+                     })
+                     .collect(),
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -164,7 +180,7 @@ impl GraphBuilder {
     pub fn add_edge(&mut self, source_node_id: usize, target_node_id: usize, weight: EdgeWeight) {
         let source_index = self.add_or_replace_node(source_node_id);
         let target_index = self.add_or_replace_node(target_node_id);
-        //let edge_out = Edge::new(target_index)
+        // let edge_out = Edge::new(target_index)
         self.graph.nodes[source_index].add_out_edge(Edge::new(target_index, weight));
         self.graph.nodes[target_index].add_in_edge(Edge::new(source_index, weight));
     }
