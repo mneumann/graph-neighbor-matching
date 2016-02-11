@@ -1,6 +1,8 @@
 use closed01::Closed01;
 use std::fmt;
 
+pub type EdgeWeight = Closed01<f32>;
+
 /// Trait used by the internal algorithm.
 pub trait Edges {
     /// The number of edges
@@ -11,7 +13,7 @@ pub trait Edges {
 
     /// Returns the nth edge weight. We expect edge weights to be
     /// normalized in the range [0, 1].
-    fn nth_edge_weight(&self, n: usize) -> Option<Closed01<f32>>;
+    fn nth_edge_weight(&self, n: usize) -> Option<EdgeWeight>;
 }
 
 pub trait Graph {

@@ -332,7 +332,7 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
 
 #[cfg(test)]
 mod tests {
-    use super::graph::{Edge, EdgeList, Node, OwnedGraph};
+    use super::graph::{Edge, EdgeList, Node, OwnedGraph, GraphBuilder};
     use super::{ScoreNorm, SimilarityMatrix, IgnoreNodeColors};
 
     fn edge(i: usize) -> Edge {
@@ -411,4 +411,32 @@ mod tests {
         assert_eq!(1.0,
                    s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get());
     }
+
+    #[test]
+    fn test_score_with_graphbuilder() {
+        // A: 0 --> 1
+        let mut a = GraphBuilder::new();
+        a.add_edge_unweighted(0, 1);
+
+        // B: 0 <-- 1
+        let mut b = GraphBuilder::new();
+        b.add_edge_unweighted(1, 0);
+
+        let ga = a.graph();
+        let gb = b.graph();
+
+        let mut s = SimilarityMatrix::new(&ga, &gb, IgnoreNodeColors);
+        s.iterate(100, 0.1);
+
+        assert_eq!(1, s.num_iterations());
+
+        // The score is 1.0 <=> A and B are isomorphic
+        assert_eq!(1.0,
+                   s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get());
+
+        // The score is 1.0 <=> A and B are isomorphic
+        assert_eq!(1.0,
+                   s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get());
+    }
+
 }
