@@ -39,6 +39,15 @@ impl NodeColorMatching for IgnoreNodeColors {
     }
 }
 
+#[inline(always)]
+// NOTE: Our weight matrix minimizes the cost, while our similarity matrix
+// wants to maximize the similarity score. That's why we have to convert
+// the cost with 1.0 - x.
+fn similarity_cost(weight: f32) -> f32 {
+    debug_assert!(weight >= 0.0 && weight <= 1.0);
+    1.0 - weight
+}
+
 #[inline]
 /// Calculates the similarity of two nodes `i` and `j`.
 ///
@@ -51,9 +60,13 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
 
     debug_assert!(min_deg <= max_deg);
 
-    if min_deg == 0 {
+    if max_deg == 0 {
         // in the paper, 0/0 is defined as 1.0
         return Closed01::one();
+    }
+
+    if min_deg == 0 {
+        return Closed01::zero();
     }
 
     assert!(min_deg > 0 && max_deg > 0);
@@ -61,7 +74,7 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
     // map indicies from 0..min(degree) to the node indices
     let mapidx = |(a, b)| (n_i.nth_edge(a).unwrap(), n_j.nth_edge(b).unwrap());
 
-    let mut w = WeightMatrix::from_fn(min_deg, |ab| x[mapidx(ab)]);
+    let mut w = WeightMatrix::from_fn(min_deg, |ab| similarity_cost(x[mapidx(ab)]));
 
     let assignment = solve_assignment(&mut w);
     assert!(assignment.len() == min_deg);
@@ -137,14 +150,13 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
             for i in 0..shape.0 {
                 for j in 0..shape.1 {
                     let scale = self.node_color_matching.node_color_matching(i, j);
-                    new_x[(i, j)] = s_next(self.graph_a.in_edges_of(i),
-                                           self.graph_b.in_edges_of(j),
-                                           x)
-                                        .average(s_next(self.graph_a.out_edges_of(i),
-                                                        self.graph_b.out_edges_of(j),
-                                                        x))
-                                        .mul(scale)
-                                        .get()
+                    let in_score = s_next(self.graph_a.in_edges_of(i),
+                                          self.graph_b.in_edges_of(j),
+                                          x);
+                    let out_score = s_next(self.graph_a.out_edges_of(i),
+                                           self.graph_b.out_edges_of(j),
+                                           x);
+                    new_x[(i, j)] = in_score.average(out_score).mul(scale).get();
                 }
             }
         }
@@ -186,7 +198,7 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
     pub fn optimal_node_assignment(&self) -> Vec<(usize, usize)> {
         let n = self.min_nodes();
         let assignment = if n > 0 {
-            let mut w = WeightMatrix::from_fn(n, |ij| self.current[ij]);
+            let mut w = WeightMatrix::from_fn(n, |ij| similarity_cost(self.current[ij]));
             solve_assignment(&mut w)
         } else {
             Vec::new()
@@ -372,16 +384,16 @@ mod tests {
         s.iterate(100, 0.1);
 
         println!("{:?}", s);
-        assert_eq!(1, s.num_iterations());
+        assert_eq!(2, s.num_iterations());
         let mat = s.matrix();
         assert_eq!(2, mat.nrows());
         assert_eq!(2, mat.ncols());
 
         // A and B are isomorphic
-        assert_eq!(1.0, mat[(0, 0)]);
+        assert_eq!(0.0, mat[(0, 0)]);
         assert_eq!(1.0, mat[(0, 1)]);
         assert_eq!(1.0, mat[(1, 0)]);
-        assert_eq!(1.0, mat[(1, 1)]);
+        assert_eq!(0.0, mat[(1, 1)]);
     }
 
     #[test]
@@ -402,7 +414,6 @@ mod tests {
         assert_eq!(3.0 / 5.0, mat[(0, 0)]);
     }
 
-
     #[test]
     fn test_score() {
         // A: 0 --> 1
@@ -414,7 +425,7 @@ mod tests {
         let mut s = SimilarityMatrix::new(&a, &b, IgnoreNodeColors);
         s.iterate(100, 0.1);
 
-        assert_eq!(1, s.num_iterations());
+        assert_eq!(2, s.num_iterations());
 
         // The score is 1.0 <=> A and B are isomorphic
         assert_eq!(1.0,
@@ -441,7 +452,7 @@ mod tests {
         let mut s = SimilarityMatrix::new(&ga, &gb, IgnoreNodeColors);
         s.iterate(100, 0.1);
 
-        assert_eq!(1, s.num_iterations());
+        assert_eq!(2, s.num_iterations());
 
         // The score is 1.0 <=> A and B are isomorphic
         assert_eq!(1.0,
