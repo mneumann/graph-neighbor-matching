@@ -337,6 +337,12 @@ pub fn similarity_max_degree<T: Graph>(a: &T, b: &T, num_iters: usize, eps: f32)
     s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree)
 }
 
+pub fn similarity_min_degree<T: Graph>(a: &T, b: &T, num_iters: usize, eps: f32) -> Closed01<f32> {
+    let mut s = SimilarityMatrix::new(a, b, IgnoreNodeColors);
+    s.iterate(num_iters, eps);
+    s.score_optimal_sum_norm(None, ScoreNorm::MinDegree)
+}
+
 #[cfg(test)]
 mod tests {
     use super::graph::{Edge, EdgeList, Node, OwnedGraph, GraphBuilder};
