@@ -56,7 +56,7 @@ impl Edges for EdgeList {
 }
 
 #[derive(Debug)]
-pub struct Node<T> {
+pub struct Node<T: Debug> {
     in_edges: EdgeList,
     out_edges: EdgeList,
     node_value: T,
@@ -70,6 +70,10 @@ impl<T: Debug> Node<T> {
             out_edges: out_edges,
             node_value: node_value,
         }
+    }
+
+    pub fn node_value(&self) -> &T {
+        &self.node_value
     }
 
     pub fn add_in_edge(&mut self, edge: Edge) {
@@ -86,16 +90,16 @@ impl<T: Debug> Node<T> {
 }
 
 #[derive(Debug)]
-pub struct OwnedGraph<T: Debug + Default> {
+pub struct OwnedGraph<T: Debug + Default + Clone> {
     nodes: Vec<Node<T>>,
 }
 
-impl<T: Debug + Default> OwnedGraph<T> {
+impl<T: Debug + Default + Clone> OwnedGraph<T> {
     pub fn new(nodes: Vec<Node<T>>) -> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
 
-    pub fn from_petgraph(pg: &PetGraph<(), (), Directed>) -> OwnedGraph<()> {
+    pub fn from_petgraph(pg: &PetGraph<T, (), Directed>) -> OwnedGraph<T> {
         OwnedGraph {
             nodes: pg.node_indices()
                      .map(|i| {
@@ -105,7 +109,9 @@ impl<T: Debug + Default> OwnedGraph<T> {
                                    EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
                                                    .map(|(j, _w)| Edge::new_unweighted(j.index()))
                                                    .collect()),
-                                   ())
+                                   pg.node_weight(i)
+                                     .map(|v| v.clone())
+                                     .unwrap_or_else(|| T::default()))
                      })
                      .collect(),
         }
@@ -115,16 +121,16 @@ impl<T: Debug + Default> OwnedGraph<T> {
         self.nodes.len()
     }
 
-    pub fn push_empty_node(&mut self) -> usize {
+    pub fn push_empty_node(&mut self, node_value: T) -> usize {
         let idx = self.nodes.len();
         self.nodes.push(Node::new(EdgeList::new(Vec::new()),
                                   EdgeList::new(Vec::new()),
-                                  T::default()));
+                                  node_value));
         return idx;
     }
 }
 
-impl<T: Debug + Default> Graph for OwnedGraph<T> {
+impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
     type E = EdgeList;
     fn num_nodes(&self) -> usize {
         self.nodes.len()
@@ -146,13 +152,13 @@ impl<T: Debug + Default> Graph for OwnedGraph<T> {
     }
 }
 
-pub struct GraphBuilder<T: Debug + Default> {
+pub struct GraphBuilder<T: Debug + Default + Clone> {
     // maps node_id to index in node_in_edges/node_out_edges.
     node_map: BTreeMap<usize, usize>,
     graph: OwnedGraph<T>,
 }
 
-impl<T: Debug + Default> GraphBuilder<T> {
+impl<T: Debug + Default + Clone> GraphBuilder<T> {
     pub fn new() -> GraphBuilder<T> {
         GraphBuilder {
             node_map: BTreeMap::new(),
@@ -164,13 +170,25 @@ impl<T: Debug + Default> GraphBuilder<T> {
         self.graph
     }
 
-    // XXX:Add a node.
+    pub fn add_node(&mut self, node_id: usize, node_value: T) -> usize {
+        match self.node_map.entry(node_id) {
+            Entry::Vacant(e) => {
+                let next_id = self.graph.push_empty_node(node_value);
+                e.insert(next_id);
+                return next_id;
+            }
+            Entry::Occupied(_) => {
+                panic!();
+            }
+        }
+    }
+
 
     // returns node index
     pub fn add_or_replace_node(&mut self, node_id: usize) -> usize {
         match self.node_map.entry(node_id) {
             Entry::Vacant(e) => {
-                let next_id = self.graph.push_empty_node();
+                let next_id = self.graph.push_empty_node(T::default());
                 e.insert(next_id);
                 return next_id;
             }
@@ -188,7 +206,6 @@ impl<T: Debug + Default> GraphBuilder<T> {
     pub fn add_edge(&mut self, source_node_id: usize, target_node_id: usize, weight: EdgeWeight) {
         let source_index = self.add_or_replace_node(source_node_id);
         let target_index = self.add_or_replace_node(target_node_id);
-        // let edge_out = Edge::new(target_index)
         self.graph.nodes[source_index].add_out_edge(Edge::new(target_index, weight));
         self.graph.nodes[target_index].add_in_edge(Edge::new(source_index, weight));
     }
