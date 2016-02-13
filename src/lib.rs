@@ -33,8 +33,8 @@ pub enum ScoreNorm {
 #[derive(Debug)]
 pub struct IgnoreNodeColors;
 
-impl NodeColorMatching for IgnoreNodeColors {
-    fn node_color_matching(&self, _node_i: usize, _node_j: usize) -> Closed01<f32> {
+impl<T> NodeColorMatching<T> for IgnoreNodeColors {
+    fn node_color_matching(&self, _node_i_value: &T, _node_j_value: &T) -> Closed01<f32> {
         Closed01::one()
     }
 }
@@ -85,9 +85,9 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
 }
 
 #[derive(Debug)]
-pub struct SimilarityMatrix<'a, F, G, E>
-    where F: NodeColorMatching,
-          G: Graph<E = E> + 'a,
+pub struct SimilarityMatrix<'a, F, G, E, N>
+    where F: NodeColorMatching<N>,
+          G: Graph<EDGE = E, NODE = N> + 'a,
           E: Edges
 {
     graph_a: &'a G,
@@ -102,22 +102,23 @@ pub struct SimilarityMatrix<'a, F, G, E>
 }
 
 
-impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
-    where F: NodeColorMatching,
-          G: Graph<E = E>,
+impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
+    where F: NodeColorMatching<N>,
+          G: Graph<EDGE = E, NODE = N>,
           E: Edges
 {
     pub fn new(graph_a: &'a G,
                graph_b: &'a G,
                node_color_matching: F)
-               -> SimilarityMatrix<'a, F, G, E> {
+               -> SimilarityMatrix<'a, F, G, E, N> {
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
         let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 // this is normally set to 1.0 (i.e. without node color matching).
-                node_color_matching.node_color_matching(i, j)
+                node_color_matching.node_color_matching(graph_a.node_value(i),
+                                                        graph_b.node_value(j))
             } else {
                 Closed01::zero()
             }
@@ -149,7 +150,9 @@ impl<'a, F, G, E> SimilarityMatrix<'a, F, G, E>
 
             for i in 0..shape.0 {
                 for j in 0..shape.1 {
-                    let scale = self.node_color_matching.node_color_matching(i, j);
+                    let scale = self.node_color_matching
+                                    .node_color_matching(self.graph_a.node_value(i),
+                                                         self.graph_b.node_value(j));
                     let in_score = s_next(self.graph_a.in_edges_of(i),
                                           self.graph_b.in_edges_of(j),
                                           x);

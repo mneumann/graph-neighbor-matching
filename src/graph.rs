@@ -131,9 +131,15 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
 }
 
 impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
-    type E = EdgeList;
+    type EDGE = EdgeList;
+    type NODE = T;
     fn num_nodes(&self) -> usize {
         self.nodes.len()
+    }
+
+    #[inline]
+    fn node_value(&self, node_idx: usize) -> &Self::NODE {
+        self.nodes[node_idx].node_value()
     }
 
     #[inline]
@@ -142,12 +148,12 @@ impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
     }
 
     #[inline]
-    fn in_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::E {
+    fn in_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::EDGE {
         &&self.nodes[node_idx].in_edges
     }
 
     #[inline]
-    fn out_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::E {
+    fn out_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::EDGE {
         &self.nodes[node_idx].out_edges
     }
 }
