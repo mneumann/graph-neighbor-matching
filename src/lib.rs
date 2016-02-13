@@ -364,11 +364,11 @@ mod tests {
         Edge::new_unweighted(i)
     }
 
-    fn node(in_edges: Vec<Edge>, out_edges: Vec<Edge>) -> Node {
-        Node::new(EdgeList::new(in_edges), EdgeList::new(out_edges))
+    fn node(in_edges: Vec<Edge>, out_edges: Vec<Edge>) -> Node<()> {
+        Node::new(EdgeList::new(in_edges), EdgeList::new(out_edges), ())
     }
 
-    fn graph(nodes: Vec<Node>) -> OwnedGraph {
+    fn graph(nodes: Vec<Node<()>>) -> OwnedGraph<()> {
         OwnedGraph::new(nodes)
     }
 
@@ -439,11 +439,11 @@ mod tests {
     #[test]
     fn test_score_with_graphbuilder() {
         // A: 0 --> 1
-        let mut a = GraphBuilder::new();
+        let mut a: GraphBuilder<()> = GraphBuilder::new();
         a.add_edge_unweighted(0, 1);
 
         // B: 0 <-- 1
-        let mut b = GraphBuilder::new();
+        let mut b: GraphBuilder<()> = GraphBuilder::new();
         b.add_edge_unweighted(1, 0);
 
         let ga = a.graph();

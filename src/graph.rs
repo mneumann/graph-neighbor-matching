@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use petgraph::{EdgeDirection, Directed};
 use petgraph::Graph as PetGraph;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct Edge {
@@ -55,17 +56,19 @@ impl Edges for EdgeList {
 }
 
 #[derive(Debug)]
-pub struct Node {
+pub struct Node<T> {
     in_edges: EdgeList,
     out_edges: EdgeList,
+    node_value: T,
 }
 
 
-impl Node {
-    pub fn new(in_edges: EdgeList, out_edges: EdgeList) -> Node {
+impl<T: Debug> Node<T> {
+    pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: T) -> Node<T> {
         Node {
             in_edges: in_edges,
             out_edges: out_edges,
+            node_value: node_value,
         }
     }
 
@@ -83,16 +86,16 @@ impl Node {
 }
 
 #[derive(Debug)]
-pub struct OwnedGraph {
-    nodes: Vec<Node>,
+pub struct OwnedGraph<T: Debug + Default> {
+    nodes: Vec<Node<T>>,
 }
 
-impl OwnedGraph {
-    pub fn new(nodes: Vec<Node>) -> OwnedGraph {
+impl<T: Debug + Default> OwnedGraph<T> {
+    pub fn new(nodes: Vec<Node<T>>) -> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
 
-    pub fn from_petgraph(pg: &PetGraph<(), (), Directed>) -> OwnedGraph {
+    pub fn from_petgraph(pg: &PetGraph<(), (), Directed>) -> OwnedGraph<()> {
         OwnedGraph {
             nodes: pg.node_indices()
                      .map(|i| {
@@ -101,7 +104,8 @@ impl OwnedGraph {
                                                    .collect()),
                                    EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
                                                    .map(|(j, _w)| Edge::new_unweighted(j.index()))
-                                                   .collect()))
+                                                   .collect()),
+                                   ())
                      })
                      .collect(),
         }
@@ -113,12 +117,14 @@ impl OwnedGraph {
 
     pub fn push_empty_node(&mut self) -> usize {
         let idx = self.nodes.len();
-        self.nodes.push(Node::new(EdgeList::new(Vec::new()), EdgeList::new(Vec::new())));
+        self.nodes.push(Node::new(EdgeList::new(Vec::new()),
+                                  EdgeList::new(Vec::new()),
+                                  T::default()));
         return idx;
     }
 }
 
-impl Graph for OwnedGraph {
+impl<T: Debug + Default> Graph for OwnedGraph<T> {
     type E = EdgeList;
     fn num_nodes(&self) -> usize {
         self.nodes.len()
@@ -140,23 +146,25 @@ impl Graph for OwnedGraph {
     }
 }
 
-pub struct GraphBuilder {
+pub struct GraphBuilder<T: Debug + Default> {
     // maps node_id to index in node_in_edges/node_out_edges.
     node_map: BTreeMap<usize, usize>,
-    graph: OwnedGraph,
+    graph: OwnedGraph<T>,
 }
 
-impl GraphBuilder {
-    pub fn new() -> GraphBuilder {
+impl<T: Debug + Default> GraphBuilder<T> {
+    pub fn new() -> GraphBuilder<T> {
         GraphBuilder {
             node_map: BTreeMap::new(),
             graph: OwnedGraph::new(Vec::new()),
         }
     }
 
-    pub fn graph(self) -> OwnedGraph {
+    pub fn graph(self) -> OwnedGraph<T> {
         self.graph
     }
+
+    // XXX:Add a node.
 
     // returns node index
     pub fn add_or_replace_node(&mut self, node_id: usize) -> usize {
