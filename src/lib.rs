@@ -34,7 +34,10 @@ pub enum ScoreNorm {
 pub struct IgnoreNodeColors;
 
 impl<T> NodeColorMatching<T> for IgnoreNodeColors {
-    fn node_color_matching(&self, _node_i_value: &T, _node_j_value: &T) -> Closed01<f32> {
+    fn node_color_matching(&self,
+                           _node_i_value: Option<&T>,
+                           _node_j_value: Option<&T>)
+                           -> Closed01<f32> {
         Closed01::one()
     }
 }
@@ -368,7 +371,7 @@ mod tests {
     }
 
     fn node(in_edges: Vec<Edge>, out_edges: Vec<Edge>) -> Node<()> {
-        Node::new(EdgeList::new(in_edges), EdgeList::new(out_edges), ())
+        Node::new(EdgeList::new(in_edges), EdgeList::new(out_edges), Some(()))
     }
 
     fn graph(nodes: Vec<Node<()>>) -> OwnedGraph<()> {

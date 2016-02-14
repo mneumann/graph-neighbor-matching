@@ -59,12 +59,12 @@ impl Edges for EdgeList {
 pub struct Node<T: Debug> {
     in_edges: EdgeList,
     out_edges: EdgeList,
-    node_value: T,
+    node_value: Option<T>,
 }
 
 
 impl<T: Debug> Node<T> {
-    pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: T) -> Node<T> {
+    pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: Option<T>) -> Node<T> {
         Node {
             in_edges: in_edges,
             out_edges: out_edges,
@@ -72,8 +72,8 @@ impl<T: Debug> Node<T> {
         }
     }
 
-    pub fn node_value(&self) -> &T {
-        &self.node_value
+    pub fn node_value(&self) -> Option<&T> {
+        self.node_value.as_ref()
     }
 
     pub fn add_in_edge(&mut self, edge: Edge) {
@@ -90,11 +90,11 @@ impl<T: Debug> Node<T> {
 }
 
 #[derive(Debug)]
-pub struct OwnedGraph<T: Debug + Default + Clone> {
+pub struct OwnedGraph<T: Debug + Clone> {
     nodes: Vec<Node<T>>,
 }
 
-impl<T: Debug + Default + Clone> OwnedGraph<T> {
+impl<T: Debug + Clone> OwnedGraph<T> {
     pub fn new(nodes: Vec<Node<T>>) -> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
@@ -109,9 +109,7 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
                                    EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
                                                    .map(|(j, _w)| Edge::new_unweighted(j.index()))
                                                    .collect()),
-                                   pg.node_weight(i)
-                                     .map(|v| v.clone())
-                                     .unwrap_or_else(|| T::default()))
+                                   pg.node_weight(i).map(|v| v.clone()))
                      })
                      .collect(),
         }
@@ -121,7 +119,7 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
         self.nodes.len()
     }
 
-    pub fn push_empty_node(&mut self, node_value: T) -> usize {
+    pub fn push_empty_node(&mut self, node_value: Option<T>) -> usize {
         let idx = self.nodes.len();
         self.nodes.push(Node::new(EdgeList::new(Vec::new()),
                                   EdgeList::new(Vec::new()),
@@ -130,7 +128,7 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
     }
 }
 
-impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
+impl<T: Debug + Clone> Graph for OwnedGraph<T> {
     type EDGE = EdgeList;
     type NODE = T;
     fn num_nodes(&self) -> usize {
@@ -138,7 +136,7 @@ impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
     }
 
     #[inline]
-    fn node_value(&self, node_idx: usize) -> &Self::NODE {
+    fn node_value(&self, node_idx: usize) -> Option<&Self::NODE> {
         self.nodes[node_idx].node_value()
     }
 
@@ -158,13 +156,13 @@ impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
     }
 }
 
-pub struct GraphBuilder<T: Debug + Default + Clone> {
+pub struct GraphBuilder<T: Debug + Clone> {
     // maps node_id to index in node_in_edges/node_out_edges.
     node_map: BTreeMap<usize, usize>,
     graph: OwnedGraph<T>,
 }
 
-impl<T: Debug + Default + Clone> GraphBuilder<T> {
+impl<T: Debug + Clone> GraphBuilder<T> {
     pub fn new() -> GraphBuilder<T> {
         GraphBuilder {
             node_map: BTreeMap::new(),
@@ -176,7 +174,7 @@ impl<T: Debug + Default + Clone> GraphBuilder<T> {
         self.graph
     }
 
-    pub fn add_node(&mut self, node_id: usize, node_value: T) -> usize {
+    pub fn add_node(&mut self, node_id: usize, node_value: Option<T>) -> usize {
         match self.node_map.entry(node_id) {
             Entry::Vacant(e) => {
                 let next_id = self.graph.push_empty_node(node_value);
@@ -194,7 +192,7 @@ impl<T: Debug + Default + Clone> GraphBuilder<T> {
     pub fn add_or_replace_node(&mut self, node_id: usize) -> usize {
         match self.node_map.entry(node_id) {
             Entry::Vacant(e) => {
-                let next_id = self.graph.push_empty_node(T::default());
+                let next_id = self.graph.push_empty_node(None);
                 e.insert(next_id);
                 return next_id;
             }
