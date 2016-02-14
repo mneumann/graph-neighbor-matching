@@ -443,10 +443,14 @@ mod tests {
     fn test_score_with_graphbuilder() {
         // A: 0 --> 1
         let mut a: GraphBuilder<()> = GraphBuilder::new();
+        a.add_node(0, ());
+        a.add_node(1, ());
         a.add_edge_unweighted(0, 1);
 
         // B: 0 <-- 1
         let mut b: GraphBuilder<()> = GraphBuilder::new();
+        b.add_node(0, ());
+        b.add_node(1, ());
         b.add_edge_unweighted(1, 0);
 
         let ga = a.graph();

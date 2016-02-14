@@ -176,6 +176,7 @@ impl<T: Debug + Default + Clone> GraphBuilder<T> {
         self.graph
     }
 
+    /// Panics if `node_id` already exists.
     pub fn add_node(&mut self, node_id: usize, node_value: T) -> usize {
         match self.node_map.entry(node_id) {
             Entry::Vacant(e) => {
@@ -189,29 +190,13 @@ impl<T: Debug + Default + Clone> GraphBuilder<T> {
         }
     }
 
-
-    // returns node index
-    pub fn add_or_replace_node(&mut self, node_id: usize) -> usize {
-        match self.node_map.entry(node_id) {
-            Entry::Vacant(e) => {
-                let next_id = self.graph.push_empty_node(T::default());
-                e.insert(next_id);
-                return next_id;
-            }
-            Entry::Occupied(e) => {
-                // XXX: replace?
-                return *e.get();
-            }
-        }
-    }
-
     pub fn add_edge_unweighted(&mut self, source_node_id: usize, target_node_id: usize) {
         self.add_edge(source_node_id, target_node_id, Closed01::zero());
     }
 
     pub fn add_edge(&mut self, source_node_id: usize, target_node_id: usize, weight: EdgeWeight) {
-        let source_index = self.add_or_replace_node(source_node_id);
-        let target_index = self.add_or_replace_node(target_node_id);
+        let source_index = *self.node_map.get(&source_node_id).unwrap();
+        let target_index = *self.node_map.get(&target_node_id).unwrap();
         self.graph.nodes[source_index].add_out_edge(Edge::new(target_index, weight));
         self.graph.nodes[target_index].add_in_edge(Edge::new(source_index, weight));
     }
