@@ -21,7 +21,7 @@ pub trait Graph {
     type NODE;
     fn num_nodes(&self) -> usize;
     fn node_degree(&self, node_idx: usize) -> usize;
-    fn node_value(&self, node_idx: usize) -> Option<&Self::NODE>;
+    fn node_value(&self, node_idx: usize) -> &Self::NODE;
     fn in_edges_of<'a>(&'a self, node_idx: usize) -> &'a Self::EDGE;
     fn out_edges_of<'a>(&'a self, node_idx: usize) -> &'a Self::EDGE;
 }
@@ -32,8 +32,5 @@ pub trait NodeColorMatching<T>: Debug {
     /// `node_value_j` of graph B are. If they have different colors, this method could return 0.0
     /// to describe that they are completely different nodes and as such the neighbor matching will
     /// try to choose a different node.  NOTE: The returned value MUST be in the range [0, 1].
-    fn node_color_matching(&self,
-                           node_value_i: Option<&T>,
-                           node_value_j: Option<&T>)
-                           -> Closed01<f32>;
+    fn node_color_matching(&self, node_value_i: &T, node_value_j: &T) -> Closed01<f32>;
 }
