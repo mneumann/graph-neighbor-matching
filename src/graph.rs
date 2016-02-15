@@ -90,16 +90,16 @@ impl<T: Debug + Clone> Node<T> {
 }
 
 #[derive(Debug)]
-pub struct OwnedGraph<T: Debug + Default + Clone> {
+pub struct OwnedGraph<T: Debug + Clone> {
     nodes: Vec<Node<T>>,
 }
 
-impl<T: Debug + Default + Clone> OwnedGraph<T> {
+impl<T: Debug + Clone> OwnedGraph<T> {
     pub fn new(nodes: Vec<Node<T>>) -> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
 
-    pub fn from_petgraph(pg: &PetGraph<T, (), Directed>) -> OwnedGraph<T> {
+    pub fn from_petgraph(pg: &PetGraph<T, (), Directed>, default_node_weight: T) -> OwnedGraph<T> {
         OwnedGraph {
             nodes: pg.node_indices()
                      .map(|i| {
@@ -111,7 +111,7 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
                                                    .collect()),
                                    pg.node_weight(i)
                                      .map(|v| v.clone())
-                                     .unwrap_or_else(|| T::default()))
+                                     .unwrap_or_else(|| default_node_weight.clone()))
                      })
                      .collect(),
         }
@@ -130,7 +130,7 @@ impl<T: Debug + Default + Clone> OwnedGraph<T> {
     }
 }
 
-impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
+impl<T: Debug + Clone> Graph for OwnedGraph<T> {
     type EDGE = EdgeList;
     type NODE = T;
     fn num_nodes(&self) -> usize {
@@ -158,13 +158,13 @@ impl<T: Debug + Default + Clone> Graph for OwnedGraph<T> {
     }
 }
 
-pub struct GraphBuilder<T: Debug + Default + Clone> {
+pub struct GraphBuilder<T: Debug + Clone> {
     // maps node_id to index in node_in_edges/node_out_edges.
     node_map: BTreeMap<usize, usize>,
     graph: OwnedGraph<T>,
 }
 
-impl<T: Debug + Default + Clone> GraphBuilder<T> {
+impl<T: Debug + Clone> GraphBuilder<T> {
     pub fn new() -> GraphBuilder<T> {
         GraphBuilder {
             node_map: BTreeMap::new(),
