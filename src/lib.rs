@@ -88,7 +88,8 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
 pub struct SimilarityMatrix<'a, F, G, E, N>
     where F: NodeColorMatching<N>,
           G: Graph<EDGE = E, NODE = N> + 'a,
-          E: Edges
+          E: Edges,
+          N: Clone
 {
     graph_a: &'a G,
     graph_b: &'a G,
@@ -105,7 +106,8 @@ pub struct SimilarityMatrix<'a, F, G, E, N>
 impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
     where F: NodeColorMatching<N>,
           G: Graph<EDGE = E, NODE = N>,
-          E: Edges
+          E: Edges,
+          N: Clone
 {
     pub fn new(graph_a: &'a G,
                graph_b: &'a G,

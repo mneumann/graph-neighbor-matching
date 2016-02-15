@@ -56,14 +56,14 @@ impl Edges for EdgeList {
 }
 
 #[derive(Debug)]
-pub struct Node<T: Debug> {
+pub struct Node<T: Debug + Clone> {
     in_edges: EdgeList,
     out_edges: EdgeList,
     node_value: T,
 }
 
 
-impl<T: Debug> Node<T> {
+impl<T: Debug + Clone> Node<T> {
     pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: T) -> Node<T> {
         Node {
             in_edges: in_edges,
