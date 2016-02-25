@@ -99,15 +99,15 @@ impl<T: Debug + Clone> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
 
-    pub fn from_petgraph(pg: &PetGraph<T, (), Directed>) -> OwnedGraph<T> {
+    pub fn from_petgraph(pg: &PetGraph<T, EdgeWeight, Directed>) -> OwnedGraph<T> {
         OwnedGraph {
             nodes: pg.node_indices()
                      .map(|i| {
                          Node::new(EdgeList::new(pg.edges_directed(i, EdgeDirection::Incoming)
-                                                   .map(|(j, _w)| Edge::new_unweighted(j.index()))
+                                                   .map(|(j, &w)| Edge::new(j.index(), w))
                                                    .collect()),
                                    EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
-                                                   .map(|(j, _w)| Edge::new_unweighted(j.index()))
+                                                   .map(|(j, &w)| Edge::new(j.index(), w))
                                                    .collect()),
                                    pg.node_weight(i).unwrap().clone())
                      })
