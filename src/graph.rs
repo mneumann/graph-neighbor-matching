@@ -156,14 +156,14 @@ impl<T: Debug + Clone> Graph for OwnedGraph<T> {
     }
 }
 
-pub struct GraphBuilder<T: Debug + Clone> {
+pub struct GraphBuilder<K: Ord, T: Debug + Clone> {
     // maps node_id to index in node_in_edges/node_out_edges.
-    node_map: BTreeMap<usize, usize>,
+    node_map: BTreeMap<K, usize>,
     graph: OwnedGraph<T>,
 }
 
-impl<T: Debug + Clone> GraphBuilder<T> {
-    pub fn new() -> GraphBuilder<T> {
+impl<K: Ord, T: Debug + Clone> GraphBuilder<K, T> {
+    pub fn new() -> GraphBuilder<K, T> {
         GraphBuilder {
             node_map: BTreeMap::new(),
             graph: OwnedGraph::new(Vec::new()),
@@ -175,7 +175,7 @@ impl<T: Debug + Clone> GraphBuilder<T> {
     }
 
     /// Panics if `node_id` already exists.
-    pub fn add_node(&mut self, node_id: usize, node_value: T) -> usize {
+    pub fn add_node(&mut self, node_id: K, node_value: T) -> usize {
         match self.node_map.entry(node_id) {
             Entry::Vacant(e) => {
                 let next_id = self.graph.push_empty_node(node_value);
@@ -188,11 +188,11 @@ impl<T: Debug + Clone> GraphBuilder<T> {
         }
     }
 
-    pub fn add_edge_unweighted(&mut self, source_node_id: usize, target_node_id: usize) {
+    pub fn add_edge_unweighted(&mut self, source_node_id: K, target_node_id: K) {
         self.add_edge(source_node_id, target_node_id, Closed01::zero());
     }
 
-    pub fn add_edge(&mut self, source_node_id: usize, target_node_id: usize, weight: EdgeWeight) {
+    pub fn add_edge(&mut self, source_node_id: K, target_node_id: K, weight: EdgeWeight) {
         let source_index = *self.node_map.get(&source_node_id).unwrap();
         let target_index = *self.node_map.get(&target_node_id).unwrap();
         self.graph.nodes[source_index].add_out_edge(Edge::new(target_index, weight));
