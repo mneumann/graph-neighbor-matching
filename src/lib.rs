@@ -15,8 +15,7 @@ use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
 use closed01::Closed01;
-pub use traits::{NodeColorMatching, Graph};
-use traits::Edges;
+pub use traits::{NodeColorMatching, Graph, Edges};
 
 pub mod graph;
 mod traits;
