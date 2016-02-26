@@ -99,6 +99,10 @@ impl<T: Debug + Clone> OwnedGraph<T> {
         OwnedGraph { nodes: nodes }
     }
 
+    pub fn nodes(&self) -> &[Node<T>] {
+        &self.nodes
+    }
+
     pub fn from_petgraph(pg: &PetGraph<T, EdgeWeight, Directed>) -> OwnedGraph<T> {
         OwnedGraph {
             nodes: pg.node_indices()
