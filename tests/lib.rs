@@ -5,7 +5,7 @@ extern crate asexp;
 extern crate petgraph;
 
 use graph_neighbor_matching::graph::OwnedGraph;
-use graph_neighbor_matching::{ScoreNorm, NodeColorMatching, SimilarityMatrix};
+use graph_neighbor_matching::{WeightedNodeColors, ScoreNorm, SimilarityMatrix};
 use graph_io_gml::parse_gml;
 use closed01::Closed01;
 use asexp::sexp::Sexp;
@@ -58,7 +58,8 @@ fn load_graph(graph_file: &str) -> OwnedGraph<f32> {
                           &|node_sexp| -> Option<f32> {
                               node_sexp.and_then(|se| se.get_float().map(|f| f as f32))
                           },
-                          &convert_weight).unwrap();
+                          &convert_weight)
+                    .unwrap();
 
     let edge_range = determine_edge_value_range(&graph);
     let graph = graph.map(|_, nw| nw.clone(),
@@ -67,24 +68,13 @@ fn load_graph(graph_file: &str) -> OwnedGraph<f32> {
     OwnedGraph::from_petgraph(&graph)
 }
 
-#[derive(Debug)]
-pub struct NodeColors;
-
-impl NodeColorMatching<f32> for NodeColors {
-    fn node_color_matching(&self,
-                           node_i_value: &f32,
-                           node_j_value: &f32)
-                           -> Closed01<f32> {
-        let dist = (*node_i_value - *node_j_value).abs().min(1.0);
-
-        debug_assert!(dist >= 0.0 && dist <= 1.0);
-
-        Closed01::new(dist).inv()
-    }
-}
-
-fn score_graphs(a: &OwnedGraph<f32>, b: &OwnedGraph<f32>, iters: usize, eps: f32, edge_score: bool) -> f32 {
-    let mut s = SimilarityMatrix::new(a, b, NodeColors);
+fn score_graphs(a: &OwnedGraph<f32>,
+                b: &OwnedGraph<f32>,
+                iters: usize,
+                eps: f32,
+                edge_score: bool)
+                -> f32 {
+    let mut s = SimilarityMatrix::new(a, b, WeightedNodeColors);
     s.iterate(iters, eps);
     let assignment = s.optimal_node_assignment();
     if edge_score {
@@ -93,14 +83,15 @@ fn score_graphs(a: &OwnedGraph<f32>, b: &OwnedGraph<f32>, iters: usize, eps: f32
         s.score_optimal_sum_norm(Some(&assignment), ScoreNorm::MaxDegree).get()
     }
 }
+
 #[test]
 fn test_isomorphic() {
-    let a = load_graph("tests/graphs/skorpion.gml"); 
+    let a = load_graph("tests/graphs/skorpion.gml");
     assert_eq!(1.0, score_graphs(&a, &a, 50, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 1, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 100, 0.01, true));
 
-    let a = load_graph("tests/graphs/collect_distribute_3_3.gml"); 
+    let a = load_graph("tests/graphs/collect_distribute_3_3.gml");
     assert_eq!(1.0, score_graphs(&a, &a, 50, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 1, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 100, 0.01, true));
@@ -108,21 +99,15 @@ fn test_isomorphic() {
 
 #[test]
 fn test_similarity() {
-    let g = load_graph("tests/graphs/collect_distribute_3_3.gml"); 
-    let a = load_graph("tests/graphs/collect_distribute_3_3a.gml"); 
-    let b = load_graph("tests/graphs/collect_distribute_3_3b.gml"); 
+    let g = load_graph("tests/graphs/collect_distribute_3_3.gml");
+    let a = load_graph("tests/graphs/collect_distribute_3_3a.gml");
+    let b = load_graph("tests/graphs/collect_distribute_3_3b.gml");
 
     // Removing one link -> 79% similarity
-    assert_eq!(79, (score_graphs(&g, &a, 100, 0.01, false) * 100.0) as usize);
+    assert_eq!(79,
+               (score_graphs(&g, &a, 100, 0.01, false) * 100.0) as usize);
 
     // Removing two links -> 64% similarity
-    assert_eq!(64, (score_graphs(&g, &b, 100, 0.01, false) * 100.0) as usize);
-}
-
-#[test]
-fn test_similarity2() {
-    let a = load_graph("tests/graphs/skorpion.gml");
-    let b = load_graph("tests/graphs/skorpion_approx44.gml");
-
-    assert_eq!(44, (score_graphs(&a, &b, 50, 0.01, false) * 100.0) as usize);
+    assert_eq!(64,
+               (score_graphs(&g, &b, 100, 0.01, false) * 100.0) as usize);
 }

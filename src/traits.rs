@@ -60,3 +60,7 @@ pub trait NodeColorMatching<T>: Debug {
     /// try to choose a different node.  NOTE: The returned value MUST be in the range [0, 1].
     fn node_color_matching(&self, node_value_i: &T, node_value_j: &T) -> Closed01<f32>;
 }
+
+pub trait NodeColorWeight {
+    fn node_color_weight(&self) -> f32;
+}
