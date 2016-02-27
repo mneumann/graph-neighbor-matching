@@ -99,4 +99,22 @@ fn test_isomorphic() {
     assert_eq!(1.0, score_graphs(&a, &a, 50, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 1, 0.1, false));
     assert_eq!(1.0, score_graphs(&a, &a, 100, 0.01, true));
+
+    let a = load_graph("tests/graphs/collect_distribute_3_3.gml"); 
+    assert_eq!(1.0, score_graphs(&a, &a, 50, 0.1, false));
+    assert_eq!(1.0, score_graphs(&a, &a, 1, 0.1, false));
+    assert_eq!(1.0, score_graphs(&a, &a, 100, 0.01, true));
+}
+
+#[test]
+fn test_similarity() {
+    let g = load_graph("tests/graphs/collect_distribute_3_3.gml"); 
+    let a = load_graph("tests/graphs/collect_distribute_3_3a.gml"); 
+    let b = load_graph("tests/graphs/collect_distribute_3_3b.gml"); 
+
+    // Removing one link -> 79% similarity
+    assert_eq!(79, (score_graphs(&g, &a, 100, 0.01, false) * 100.0) as usize);
+
+    // Removing two links -> 64% similarity
+    assert_eq!(64, (score_graphs(&g, &b, 100, 0.01, false) * 100.0) as usize);
 }

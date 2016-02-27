@@ -17,7 +17,6 @@ petgraph = "0.2.2"
 
 [dev-dependencies]
 
-graph-io-gml = "0.0.2"
+graph-io-gml = "0.1"
 closed01 = "0.4"
-asexp = "0.2"
-petgraph = "0.2"
+asexp = "0.3"
