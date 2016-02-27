@@ -7,16 +7,15 @@ repository = "https://github.com/mneumann/graph-neighbor-matching"
 description = "Graph similarity score using neighbor matching"
 keywords = ["graph", "algorithm", "similarity"]
 
-include = ["src/*.rs", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/*.rs", "tests/lib.rs", "tests/graphs/*.gml", "tests/graphs/neat/*.gml", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-nalgebra = "0.4.0"
+nalgebra = "0.5.1"
 munkres = "0.2.0"
 closed01 = "0.4.0"
-petgraph = "0.2.2"
+petgraph = "0.2.3"
 
 [dev-dependencies]
 
 graph-io-gml = "0.1"
-closed01 = "0.4"
 asexp = "0.3"
