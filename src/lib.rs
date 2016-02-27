@@ -60,11 +60,17 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
     debug_assert!(min_deg <= max_deg);
 
     if max_deg == 0 {
+        debug_assert!(n_i.num_edges() == 0);
+        debug_assert!(n_j.num_edges() == 0);
+
         // in the paper, 0/0 is defined as 1.0
+
+        // Two nodes without any edges are perfectly similar.
         return Closed01::one();
     }
 
     if min_deg == 0 {
+        // A node without any edges is not similar at all to a node with edges.
         return Closed01::zero();
     }
 
