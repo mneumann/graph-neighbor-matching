@@ -118,3 +118,11 @@ fn test_similarity() {
     // Removing two links -> 64% similarity
     assert_eq!(64, (score_graphs(&g, &b, 100, 0.01, false) * 100.0) as usize);
 }
+
+#[test]
+fn test_similarity2() {
+    let a = load_graph("tests/graphs/skorpion.gml");
+    let b = load_graph("tests/graphs/skorpion_approx44.gml");
+
+    assert_eq!(44, (score_graphs(&a, &b, 50, 0.01, false) * 100.0) as usize);
+}
