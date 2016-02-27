@@ -3,6 +3,7 @@ use closed01::Closed01;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use petgraph::{EdgeDirection, Directed};
+use petgraph::graph::NodeIndex;
 use petgraph::Graph as PetGraph;
 use std::fmt::Debug;
 
@@ -117,6 +118,23 @@ impl<T: Debug + Clone> OwnedGraph<T> {
                      })
                      .collect(),
         }
+    }
+
+    pub fn to_petgraph(&self) -> PetGraph<T, EdgeWeight, Directed> {
+        let mut pg = PetGraph::new();
+
+        for node in self.nodes() {
+            pg.add_node(node.node_value().clone());
+        }
+
+        for (source_idx, node) in self.nodes().iter().enumerate() {
+            for edge in &node.out_edges.edges {
+                let target_idx = edge.pointing_node as usize;
+                pg.add_edge(NodeIndex::new(source_idx), NodeIndex::new(target_idx), edge.weight.clone());
+            }
+        }
+
+        return pg;
     }
 
     pub fn len(&self) -> usize {
