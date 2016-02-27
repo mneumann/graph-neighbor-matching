@@ -56,7 +56,7 @@ fn load_graph(graph_file: &str) -> OwnedGraph<f32> {
 
     let graph = parse_gml(&graph_str,
                           &|node_sexp| -> Option<f32> {
-                              node_sexp.and_then(|se| se.get_float().map(|f| f as f32))
+                              Some(node_sexp.and_then(|se| se.get_float().map(|f| f as f32)).unwrap())
                           },
                           &convert_weight)
                     .unwrap();
@@ -110,4 +110,16 @@ fn test_similarity() {
     // Removing two links -> 64% similarity
     assert_eq!(64,
                (score_graphs(&g, &b, 100, 0.01, false) * 100.0) as usize);
+}
+
+#[test]
+fn test_similarity_neat() {
+    let target = load_graph("tests/graphs/neat/target.gml");
+    let g = load_graph("tests/graphs/neat/approx.gml");
+
+    let score1 = score_graphs(&target, &g, 50, 0.01, false);
+    let score2 = score_graphs(&g, &target, 50, 0.01, false);
+
+    assert_eq!(56, (score1 * 100.0) as usize);
+    assert_eq!(56, (score2 * 100.0) as usize);
 }
