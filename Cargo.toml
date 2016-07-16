@@ -1,6 +1,6 @@
 [package]
 name = "graph-neighbor-matching"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Michael Neumann <mneumann@ntecs.de>"]
 license = "MIT"
 repository = "https://github.com/mneumann/graph-neighbor-matching"
@@ -11,7 +11,7 @@ include = ["src/*.rs", "tests/lib.rs", "tests/graphs/*.gml", "tests/graphs/neat/
 
 [dependencies]
 nalgebra = "0.5.1"
-munkres = "0.2.0"
+munkres = "0.3.0"
 closed01 = "0.4.0"
 petgraph = "0.2.3"
 

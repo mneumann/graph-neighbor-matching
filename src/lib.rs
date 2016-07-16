@@ -285,9 +285,10 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
         }
     }
 
-    /// Calculate a similarity measure of outgoing of nodes `node_i` of graph A and `node_j` of
-    /// graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
+    /// Calculate a similarity measure of outgoing edges of nodes `node_i` of graph A and `node_j`
+    /// of graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
     /// similarity.
+
     fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> Closed01<f32> {
         let out_i = self.graph_a.out_edges_of(node_i);
         let out_j = self.graph_b.out_edges_of(node_j);
