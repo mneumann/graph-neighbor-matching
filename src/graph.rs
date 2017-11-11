@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use petgraph::{EdgeDirection, Directed};
 use petgraph::graph::NodeIndex;
+use petgraph::visit::EdgeRef;
 use petgraph::Graph as PetGraph;
 use std::fmt::Debug;
 
@@ -111,12 +112,12 @@ impl<T: Debug + Clone> OwnedGraph<T> {
                     Node::new(
                         EdgeList::new(
                             pg.edges_directed(i, EdgeDirection::Incoming)
-                                .map(|(j, &w)| Edge::new(j.index(), w))
+                                .map(|edge| Edge::new(edge.source().index(), *edge.weight()))
                                 .collect(),
                         ),
                         EdgeList::new(
                             pg.edges_directed(i, EdgeDirection::Outgoing)
-                                .map(|(j, &w)| Edge::new(j.index(), w))
+                                .map(|edge| Edge::new(edge.target().index(), *edge.weight()))
                                 .collect(),
                         ),
                         pg.node_weight(i).unwrap().clone(),

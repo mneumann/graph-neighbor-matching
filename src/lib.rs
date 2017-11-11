@@ -9,8 +9,10 @@ extern crate nalgebra;
 extern crate munkres;
 extern crate closed01;
 extern crate petgraph;
+#[macro_use]
+extern crate approx;
 
-use nalgebra::{DMat, Shape, ApproxEq};
+use nalgebra::DMatrix;
 use munkres::{WeightMatrix, solve_assignment};
 use std::cmp;
 use std::mem;
@@ -74,7 +76,7 @@ fn similarity_cost(weight: f32) -> f32 {
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
-fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
+fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMatrix<f32>) -> Closed01<f32> {
     let max_deg = cmp::max(n_i.num_edges(), n_j.num_edges());
     let min_deg = cmp::min(n_i.num_edges(), n_j.num_edges());
 
@@ -122,9 +124,9 @@ where
     graph_b: &'a G,
     node_color_matching: F,
     // current version of similarity matrix
-    current: DMat<f32>,
+    current: DMatrix<f32>,
     // previous version of similarity matrix
-    previous: DMat<f32>,
+    previous: DMatrix<f32>,
     // current number of iterations
     num_iterations: usize,
 }
@@ -145,7 +147,7 @@ where
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
-        let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
+        let x = DMatrix::<f32>::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 // this is normally set to 1.0 (i.e. without node color matching).
                 node_color_matching.node_color_matching(
@@ -157,7 +159,11 @@ where
             }.get()
         });
 
-        let new_x: DMat<f32> = DMat::new_zeros(graph_a.num_nodes(), graph_b.num_nodes());
+        let new_x = DMatrix::<f32>::from_element(
+            graph_a.num_nodes(),
+            graph_b.num_nodes(),
+            Closed01::zero().get(),
+        );
 
         SimilarityMatrix {
             graph_a: graph_a,
@@ -170,7 +176,7 @@ where
     }
 
     fn in_eps(&self, eps: f32) -> bool {
-        self.previous.approx_eq_eps(&self.current, &eps)
+        relative_eq!(self.previous, self.current, epsilon = eps)
     }
 
     /// Calculates the next iteration of the similarity matrix (x[k+1]).
@@ -216,7 +222,7 @@ where
         }
     }
 
-    pub fn matrix(&self) -> &DMat<f32> {
+    pub fn matrix(&self) -> &DMatrix<f32> {
         &self.current
     }
 
@@ -379,7 +385,7 @@ where
     pub fn score_average(&self) -> Closed01<f32> {
         let n = self.min_nodes();
         if n > 0 {
-            let items = self.current.as_vec();
+            let items = self.current.as_slice();
             let sum: f32 = items.iter().fold(0.0, |acc, &v| acc + v);
             let len = items.len();
             assert!(len > 0);
