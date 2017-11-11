@@ -48,11 +48,10 @@ impl<T> NodeColorMatching<T> for IgnoreNodeColors {
 pub struct WeightedNodeColors;
 
 impl<T: NodeColorWeight> NodeColorMatching<T> for WeightedNodeColors {
-    fn node_color_matching(&self,
-                           node_i_value: &T,
-                           node_j_value: &T)
-                           -> Closed01<f32> {
-        let dist = (node_i_value.node_color_weight() - node_j_value.node_color_weight()).abs().min(1.0);
+    fn node_color_matching(&self, node_i_value: &T, node_j_value: &T) -> Closed01<f32> {
+        let dist = (node_i_value.node_color_weight() - node_j_value.node_color_weight())
+            .abs()
+            .min(1.0);
 
         debug_assert!(dist >= 0.0 && dist <= 1.0);
 
@@ -113,10 +112,11 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMat<f32>) -> Closed01<f32> {
 
 #[derive(Debug)]
 pub struct SimilarityMatrix<'a, F, G, E, N>
-    where F: NodeColorMatching<N>,
-          G: Graph<EDGE = E, NODE = N> + 'a,
-          E: Edges,
-          N: Clone
+where
+    F: NodeColorMatching<N>,
+    G: Graph<EDGE = E, NODE = N> + 'a,
+    E: Edges,
+    N: Clone,
 {
     graph_a: &'a G,
     graph_b: &'a G,
@@ -131,27 +131,30 @@ pub struct SimilarityMatrix<'a, F, G, E, N>
 
 
 impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
-    where F: NodeColorMatching<N>,
-          G: Graph<EDGE = E, NODE = N>,
-          E: Edges,
-          N: Clone
+where
+    F: NodeColorMatching<N>,
+    G: Graph<EDGE = E, NODE = N>,
+    E: Edges,
+    N: Clone,
 {
-    pub fn new(graph_a: &'a G,
-               graph_b: &'a G,
-               node_color_matching: F)
-               -> SimilarityMatrix<'a, F, G, E, N> {
+    pub fn new(
+        graph_a: &'a G,
+        graph_b: &'a G,
+        node_color_matching: F,
+    ) -> SimilarityMatrix<'a, F, G, E, N> {
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
         let x: DMat<f32> = DMat::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 // this is normally set to 1.0 (i.e. without node color matching).
-                node_color_matching.node_color_matching(graph_a.node_value(i),
-                                                        graph_b.node_value(j))
+                node_color_matching.node_color_matching(
+                    graph_a.node_value(i),
+                    graph_b.node_value(j),
+                )
             } else {
                 Closed01::zero()
-            }
-            .get()
+            }.get()
         });
 
         let new_x: DMat<f32> = DMat::new_zeros(graph_a.num_nodes(), graph_b.num_nodes());
@@ -179,15 +182,17 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
 
             for i in 0..shape.0 {
                 for j in 0..shape.1 {
-                    let scale = self.node_color_matching
-                                    .node_color_matching(self.graph_a.node_value(i),
-                                                         self.graph_b.node_value(j));
-                    let in_score = s_next(self.graph_a.in_edges_of(i),
-                                          self.graph_b.in_edges_of(j),
-                                          x);
-                    let out_score = s_next(self.graph_a.out_edges_of(i),
-                                           self.graph_b.out_edges_of(j),
-                                           x);
+                    let scale = self.node_color_matching.node_color_matching(
+                        self.graph_a.node_value(i),
+                        self.graph_b.node_value(j),
+                    );
+                    let in_score =
+                        s_next(self.graph_a.in_edges_of(i), self.graph_b.in_edges_of(j), x);
+                    let out_score = s_next(
+                        self.graph_a.out_edges_of(i),
+                        self.graph_b.out_edges_of(j),
+                        x,
+                    );
                     new_x[(i, j)] = in_score.average(out_score).mul(scale).get();
                 }
             }
@@ -243,12 +248,18 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
         match node_assignment {
             Some(node_assignment) => {
                 assert!(node_assignment.len() == self.min_nodes());
-                node_assignment.iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+                node_assignment.iter().fold(
+                    0.0,
+                    |acc, &ab| acc + self.current[ab],
+                )
             }
             None => {
                 let node_assignment = self.optimal_node_assignment();
                 assert!(node_assignment.len() == self.min_nodes());
-                node_assignment.iter().fold(0.0, |acc, &ab| acc + self.current[ab])
+                node_assignment.iter().fold(
+                    0.0,
+                    |acc, &ab| acc + self.current[ab],
+                )
             }
         }
     }
@@ -258,10 +269,11 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
     /// We start by calculating the optimal node assignment between nodes of graph A and graph B,
     /// then compare all outgoing edges of similar-assigned nodes by again using an assignment
     /// between the edge-weight differences of all edge pairs.
-    pub fn score_outgoing_edge_weights_sum_norm(&self,
-                                                node_assignment: &[(usize, usize)],
-                                                norm: ScoreNorm)
-                                                -> Closed01<f32> {
+    pub fn score_outgoing_edge_weights_sum_norm(
+        &self,
+        node_assignment: &[(usize, usize)],
+        norm: ScoreNorm,
+    ) -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
         debug_assert!(m >= n);
@@ -310,8 +322,7 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
                     // penalize for that in the node similarity measure.
                     Closed01::one()
                 }
-            }
-            .get()
+            }.get()
         };
 
         let mut w = WeightMatrix::from_fn(max_deg, edge_weight_distance);
@@ -322,7 +333,9 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
 
         // The sum is the sum of all weight differences on the optimal `path`.
         // It's range is from 0.0 (perfect matching) to max_deg*1.0 (bad matching).
-        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| acc + edge_weight_distance(ij));
+        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| {
+            acc + edge_weight_distance(ij)
+        });
 
         debug_assert!(sum >= 0.0 && sum <= max_deg as f32);
 
@@ -334,10 +347,11 @@ impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
     /// Sums the optimal assignment of the node similarities and normalizes (divides)
     /// by the min/max degree of both graphs.
     /// ScoreNorm::MinDegree is used as default in the paper.
-    pub fn score_optimal_sum_norm(&self,
-                                  node_assignment: Option<&[(usize, usize)]>,
-                                  norm: ScoreNorm)
-                                  -> Closed01<f32> {
+    pub fn score_optimal_sum_norm(
+        &self,
+        node_assignment: Option<&[(usize, usize)]>,
+        norm: ScoreNorm,
+    ) -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
 
@@ -408,10 +422,16 @@ mod tests {
     #[test]
     fn test_matrix() {
         // A: 0 --> 1
-        let a = graph(vec![node(vec![], vec![edge(1)]), node(vec![edge(0)], vec![])]);
+        let a = graph(vec![
+            node(vec![], vec![edge(1)]),
+            node(vec![edge(0)], vec![]),
+        ]);
 
         // B: 0 <-- 1
-        let b = graph(vec![node(vec![edge(1)], vec![]), node(vec![], vec![edge(0)])]);
+        let b = graph(vec![
+            node(vec![edge(1)], vec![]),
+            node(vec![], vec![edge(0)]),
+        ]);
 
         let mut s = SimilarityMatrix::new(&a, &b, IgnoreNodeColors);
         s.iterate(100, 0.1);
@@ -432,11 +452,17 @@ mod tests {
     #[test]
     fn test_matrix_iter1() {
         let a = graph(vec![
-            node(vec![edge(0), edge(0), edge(0)], vec![edge(0), edge(0), edge(0)]),
+            node(
+                vec![edge(0), edge(0), edge(0)],
+                vec![edge(0), edge(0), edge(0)]
+            ),
         ]);
 
         let b = graph(vec![
-            node(vec![edge(0), edge(0), edge(0), edge(0), edge(0)], vec![edge(0), edge(0), edge(0), edge(0), edge(0)]),
+            node(
+                vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
+                vec![edge(0), edge(0), edge(0), edge(0), edge(0)]
+            ),
         ]);
 
         let mut s = SimilarityMatrix::new(&a, &b, IgnoreNodeColors);
@@ -450,10 +476,16 @@ mod tests {
     #[test]
     fn test_score() {
         // A: 0 --> 1
-        let a = graph(vec![node(vec![], vec![edge(1)]), node(vec![edge(0)], vec![])]);
+        let a = graph(vec![
+            node(vec![], vec![edge(1)]),
+            node(vec![edge(0)], vec![]),
+        ]);
 
         // B: 0 <-- 1
-        let b = graph(vec![node(vec![edge(1)], vec![]), node(vec![], vec![edge(0)])]);
+        let b = graph(vec![
+            node(vec![edge(1)], vec![]),
+            node(vec![], vec![edge(0)]),
+        ]);
 
         let mut s = SimilarityMatrix::new(&a, &b, IgnoreNodeColors);
         s.iterate(100, 0.1);
@@ -461,12 +493,16 @@ mod tests {
         assert_eq!(2, s.num_iterations());
 
         // The score is 1.0 <=> A and B are isomorphic
-        assert_eq!(1.0,
-                   s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get());
+        assert_eq!(
+            1.0,
+            s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get()
+        );
 
         // The score is 1.0 <=> A and B are isomorphic
-        assert_eq!(1.0,
-                   s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get());
+        assert_eq!(
+            1.0,
+            s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get()
+        );
     }
 
     #[test]
@@ -492,12 +528,16 @@ mod tests {
         assert_eq!(2, s.num_iterations());
 
         // The score is 1.0 <=> A and B are isomorphic
-        assert_eq!(1.0,
-                   s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get());
+        assert_eq!(
+            1.0,
+            s.score_optimal_sum_norm(None, ScoreNorm::MinDegree).get()
+        );
 
         // The score is 1.0 <=> A and B are isomorphic
-        assert_eq!(1.0,
-                   s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get());
+        assert_eq!(
+            1.0,
+            s.score_optimal_sum_norm(None, ScoreNorm::MaxDegree).get()
+        );
     }
 
 }

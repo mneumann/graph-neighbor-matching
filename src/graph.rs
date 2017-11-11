@@ -107,16 +107,22 @@ impl<T: Debug + Clone> OwnedGraph<T> {
     pub fn from_petgraph(pg: &PetGraph<T, EdgeWeight, Directed>) -> OwnedGraph<T> {
         OwnedGraph {
             nodes: pg.node_indices()
-                     .map(|i| {
-                         Node::new(EdgeList::new(pg.edges_directed(i, EdgeDirection::Incoming)
-                                                   .map(|(j, &w)| Edge::new(j.index(), w))
-                                                   .collect()),
-                                   EdgeList::new(pg.edges_directed(i, EdgeDirection::Outgoing)
-                                                   .map(|(j, &w)| Edge::new(j.index(), w))
-                                                   .collect()),
-                                   pg.node_weight(i).unwrap().clone())
-                     })
-                     .collect(),
+                .map(|i| {
+                    Node::new(
+                        EdgeList::new(
+                            pg.edges_directed(i, EdgeDirection::Incoming)
+                                .map(|(j, &w)| Edge::new(j.index(), w))
+                                .collect(),
+                        ),
+                        EdgeList::new(
+                            pg.edges_directed(i, EdgeDirection::Outgoing)
+                                .map(|(j, &w)| Edge::new(j.index(), w))
+                                .collect(),
+                        ),
+                        pg.node_weight(i).unwrap().clone(),
+                    )
+                })
+                .collect(),
         }
     }
 
@@ -130,7 +136,11 @@ impl<T: Debug + Clone> OwnedGraph<T> {
         for (source_idx, node) in self.nodes().iter().enumerate() {
             for edge in &node.out_edges.edges {
                 let target_idx = edge.pointing_node as usize;
-                pg.add_edge(NodeIndex::new(source_idx), NodeIndex::new(target_idx), edge.weight.clone());
+                pg.add_edge(
+                    NodeIndex::new(source_idx),
+                    NodeIndex::new(target_idx),
+                    edge.weight.clone(),
+                );
             }
         }
 
@@ -143,9 +153,11 @@ impl<T: Debug + Clone> OwnedGraph<T> {
 
     pub fn push_empty_node(&mut self, node_value: T) -> usize {
         let idx = self.nodes.len();
-        self.nodes.push(Node::new(EdgeList::new(Vec::new()),
-                                  EdgeList::new(Vec::new()),
-                                  node_value));
+        self.nodes.push(Node::new(
+            EdgeList::new(Vec::new()),
+            EdgeList::new(Vec::new()),
+            node_value,
+        ));
         return idx;
     }
 }

@@ -53,7 +53,6 @@ pub trait Graph {
 }
 
 pub trait NodeColorMatching<T>: Debug {
-
     /// Determines how close or distant two nodes with node weights `node_value_i` of graph A, and
     /// `node_value_j` of graph B are. If they have different colors, this method could return 0.0
     /// to describe that they are completely different nodes and as such the neighbor matching will
