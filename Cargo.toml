@@ -7,7 +7,7 @@ repository = "https://github.com/mneumann/graph-neighbor-matching"
 description = "Graph similarity score using neighbor matching"
 keywords = ["graph", "algorithm", "similarity"]
 
-exclude = ["/target", "/test-helper/target"]
+exclude = ["/target"]
 include = ["*.gml", "*.rs", "*.toml", "*.md", "LICENSE"]
 
 [dependencies]
@@ -19,4 +19,5 @@ approx = "0.1"
 
 [dev-dependencies]
 
-test-helper = {path = "./test-helper", version = "0.1.0"}
+asexp = "0.3"
+graph-io-gml = "0.2"

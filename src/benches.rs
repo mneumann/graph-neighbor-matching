@@ -1,9 +1,4 @@
-#![feature(test)]
-
-extern crate test;
-extern crate test_helper;
-
-use test_helper::{load_graph, score_graphs};
+use super::test_helper::{load_graph, score_graphs};
 use test::Bencher;
 
 #[bench]

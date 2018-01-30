@@ -1,11 +1,5 @@
-extern crate asexp;
-extern crate closed01;
-extern crate graph_io_gml;
-extern crate graph_neighbor_matching;
-extern crate petgraph;
-
-use graph_neighbor_matching::graph::OwnedGraph;
-use graph_neighbor_matching::{ScoreNorm, SimilarityMatrix, WeightedNodeColors};
+use super::graph::OwnedGraph;
+use super::{ScoreNorm, SimilarityMatrix, WeightedNodeColors};
 use graph_io_gml::parse_gml;
 use closed01::Closed01;
 use asexp::sexp::Sexp;
