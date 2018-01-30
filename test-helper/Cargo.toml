@@ -5,11 +5,8 @@ authors = ["Michael Neumann <mneumann@ntecs.de>"]
 
 [dependencies]
 
-nalgebra = "0.13"
-munkres = "0.3"
-closed01 = "0.4"
-petgraph = "0.4"
-approx = "0.1"
-graph-io-gml = "0.2"
 asexp = "0.3"
-graph-neighbor-matching = {path=".."}
+closed01 = "0.4"
+graph-io-gml = "0.2"
+graph-neighbor-matching = { path = ".." }
+petgraph = "0.4"

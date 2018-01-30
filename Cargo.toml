@@ -7,7 +7,8 @@ repository = "https://github.com/mneumann/graph-neighbor-matching"
 description = "Graph similarity score using neighbor matching"
 keywords = ["graph", "algorithm", "similarity"]
 
-include = ["src/*.rs", "tests/lib.rs", "tests/graphs/*.gml", "tests/graphs/neat/*.gml", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/*.rs", "tests/*.rs", "benches/*.rs", "test-helper/Cargo.toml", "test-helper/src/*.rs",
+           "graphs/*.gml", "graphs/neat/*.gml", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
 nalgebra = "0.13"
