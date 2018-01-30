@@ -1,11 +1,11 @@
-extern crate graph_neighbor_matching;
-extern crate graph_io_gml;
-extern crate closed01;
 extern crate asexp;
+extern crate closed01;
+extern crate graph_io_gml;
+extern crate graph_neighbor_matching;
 extern crate petgraph;
 
 use graph_neighbor_matching::graph::OwnedGraph;
-use graph_neighbor_matching::{WeightedNodeColors, ScoreNorm, SimilarityMatrix};
+use graph_neighbor_matching::{ScoreNorm, SimilarityMatrix, WeightedNodeColors};
 use graph_io_gml::parse_gml;
 use closed01::Closed01;
 use asexp::sexp::Sexp;
@@ -67,9 +67,10 @@ fn load_graph(graph_file: &str) -> OwnedGraph<f32> {
     ).unwrap();
 
     let edge_range = determine_edge_value_range(&graph);
-    let graph = graph.map(|_, nw| nw.clone(), |_, &ew| {
-        normalize_to_closed01(ew, edge_range)
-    });
+    let graph = graph.map(
+        |_, nw| nw.clone(),
+        |_, &ew| normalize_to_closed01(ew, edge_range),
+    );
 
     OwnedGraph::from_petgraph(&graph)
 }

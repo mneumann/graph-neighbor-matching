@@ -2,7 +2,7 @@ use super::traits::{EdgeWeight, Edges, Graph};
 use closed01::Closed01;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
-use petgraph::{EdgeDirection, Directed};
+use petgraph::{Directed, EdgeDirection};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use petgraph::Graph as PetGraph;
@@ -63,7 +63,6 @@ pub struct Node<T: Debug + Clone> {
     out_edges: EdgeList,
     node_value: T,
 }
-
 
 impl<T: Debug + Clone> Node<T> {
     pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: T) -> Node<T> {

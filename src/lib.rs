@@ -1,23 +1,22 @@
+#[macro_use]
+extern crate approx;
+extern crate closed01;
+extern crate munkres;
 /// A graph similarity score using neighbor matching according to [this paper][1].
 ///
 /// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
 ///      of Graph Nodes by Neighbor Matching"
 ///
 /// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
-
 extern crate nalgebra;
-extern crate munkres;
-extern crate closed01;
 extern crate petgraph;
-#[macro_use]
-extern crate approx;
 
 use nalgebra::DMatrix;
-use munkres::{WeightMatrix, solve_assignment};
+use munkres::{solve_assignment, WeightMatrix};
 use std::cmp;
 use std::mem;
 use closed01::Closed01;
-pub use traits::{NodeColorWeight, NodeColorMatching, Graph, Edges};
+pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
 
 pub mod graph;
 mod traits;
@@ -131,7 +130,6 @@ where
     num_iterations: usize,
 }
 
-
 impl<'a, F, G, E, N> SimilarityMatrix<'a, F, G, E, N>
 where
     F: NodeColorMatching<N>,
@@ -150,10 +148,8 @@ where
         let x = DMatrix::<f32>::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 // this is normally set to 1.0 (i.e. without node color matching).
-                node_color_matching.node_color_matching(
-                    graph_a.node_value(i),
-                    graph_b.node_value(j),
-                )
+                node_color_matching
+                    .node_color_matching(graph_a.node_value(i), graph_b.node_value(j))
             } else {
                 Closed01::zero()
             }.get()
@@ -254,18 +250,16 @@ where
         match node_assignment {
             Some(node_assignment) => {
                 assert!(node_assignment.len() == self.min_nodes());
-                node_assignment.iter().fold(
-                    0.0,
-                    |acc, &ab| acc + self.current[ab],
-                )
+                node_assignment
+                    .iter()
+                    .fold(0.0, |acc, &ab| acc + self.current[ab])
             }
             None => {
                 let node_assignment = self.optimal_node_assignment();
                 assert!(node_assignment.len() == self.min_nodes());
-                node_assignment.iter().fold(
-                    0.0,
-                    |acc, &ab| acc + self.current[ab],
-                )
+                node_assignment
+                    .iter()
+                    .fold(0.0, |acc, &ab| acc + self.current[ab])
             }
         }
     }
@@ -339,9 +333,9 @@ where
 
         // The sum is the sum of all weight differences on the optimal `path`.
         // It's range is from 0.0 (perfect matching) to max_deg*1.0 (bad matching).
-        let sum: f32 = assignment.iter().fold(0.0, |acc, &ij| {
-            acc + edge_weight_distance(ij)
-        });
+        let sum: f32 = assignment
+            .iter()
+            .fold(0.0, |acc, &ij| acc + edge_weight_distance(ij));
 
         debug_assert!(sum >= 0.0 && sum <= max_deg as f32);
 
@@ -360,7 +354,6 @@ where
     ) -> Closed01<f32> {
         let n = self.min_nodes();
         let m = self.max_nodes();
-
 
         if n > 0 {
             assert!(m > 0);
@@ -410,8 +403,8 @@ pub fn similarity_min_degree<T: Graph>(a: &T, b: &T, num_iters: usize, eps: f32)
 
 #[cfg(test)]
 mod tests {
-    use super::graph::{Edge, EdgeList, Node, OwnedGraph, GraphBuilder};
-    use super::{ScoreNorm, SimilarityMatrix, IgnoreNodeColors};
+    use super::graph::{Edge, EdgeList, GraphBuilder, Node, OwnedGraph};
+    use super::{IgnoreNodeColors, ScoreNorm, SimilarityMatrix};
 
     fn edge(i: usize) -> Edge {
         Edge::new_unweighted(i)
@@ -460,14 +453,14 @@ mod tests {
         let a = graph(vec![
             node(
                 vec![edge(0), edge(0), edge(0)],
-                vec![edge(0), edge(0), edge(0)]
+                vec![edge(0), edge(0), edge(0)],
             ),
         ]);
 
         let b = graph(vec![
             node(
                 vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
-                vec![edge(0), edge(0), edge(0), edge(0), edge(0)]
+                vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
             ),
         ]);
 
