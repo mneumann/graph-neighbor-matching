@@ -18,5 +18,4 @@ approx = "0.1"
 
 [dev-dependencies]
 
-graph-io-gml = "0.2"
-asexp = "0.3"
+test-helper = {path = "./test-helper"}
