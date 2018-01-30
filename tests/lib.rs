@@ -126,6 +126,18 @@ fn test_similarity() {
 }
 
 #[test]
+fn test_similarity2() {
+    let g = load_graph("tests/graphs/skorpion.gml");
+    let a = load_graph("tests/graphs/skorpion_approx44.gml");
+
+    // Removing one link -> 79% similarity
+    assert_eq!(
+        44,
+        (score_graphs(&g, &a, 100, 0.01, false) * 100.0) as usize
+    );
+}
+
+#[test]
 fn test_similarity_neat() {
     let target = load_graph("tests/graphs/neat/target.gml");
     let g = load_graph("tests/graphs/neat/approx.gml");
