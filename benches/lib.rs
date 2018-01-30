@@ -39,3 +39,23 @@ fn bench_similarity2(bench: &mut Bencher) {
         );
     });
 }
+
+#[bench]
+fn bench_isomorphic_ffl_35(bench: &mut Bencher) {
+    let a = load_graph("graphs/ffl/ffl_iso_1_35.gml");
+    let b = load_graph("graphs/ffl/ffl_iso_2_35.gml");
+
+    bench.iter(|| {
+        assert_eq!(1.0, score_graphs(&a, &b, 100, 0.01, true));
+    });
+}
+
+#[bench]
+fn bench_isomorphic_ffl_100(bench: &mut Bencher) {
+    let a = load_graph("graphs/ffl/ffl_iso_1_100.gml");
+    let b = load_graph("graphs/ffl/ffl_iso_2_100.gml");
+
+    bench.iter(|| {
+        assert_eq!(1.0, score_graphs(&a, &b, 100, 0.01, true));
+    });
+}

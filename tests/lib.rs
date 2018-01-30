@@ -56,3 +56,11 @@ fn test_similarity_neat() {
     assert_eq!(56, (score1 * 100.0) as usize);
     assert_eq!(56, (score2 * 100.0) as usize);
 }
+
+#[test]
+fn test_isomorphic_ffl() {
+    let a = load_graph("graphs/ffl/ffl_iso_1_35.gml");
+    let b = load_graph("graphs/ffl/ffl_iso_2_35.gml");
+
+    assert_eq!(1.0, score_graphs(&a, &b, 100, 0.01, true));
+}

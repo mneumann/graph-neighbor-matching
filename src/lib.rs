@@ -103,7 +103,7 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMatrix<f32>) -> Closed01<f32> {
 
     let mut w = WeightMatrix::from_fn(min_deg, |ab| similarity_cost(x[mapidx(ab)]));
 
-    let assignment = solve_assignment(&mut w);
+    let assignment = solve_assignment(&mut w).unwrap();
     assert!(assignment.len() == min_deg);
 
     let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[mapidx(ab)]);
@@ -238,7 +238,7 @@ where
         let n = self.min_nodes();
         let assignment = if n > 0 {
             let mut w = WeightMatrix::from_fn(n, |ij| similarity_cost(self.current[ij]));
-            solve_assignment(&mut w)
+            solve_assignment(&mut w).unwrap()
         } else {
             Vec::new()
         };
@@ -328,7 +328,7 @@ where
         let mut w = WeightMatrix::from_fn(max_deg, edge_weight_distance);
 
         // calculate optimal edge weight assignement.
-        let assignment = solve_assignment(&mut w);
+        let assignment = solve_assignment(&mut w).unwrap();
         assert!(assignment.len() == max_deg);
 
         // The sum is the sum of all weight differences on the optimal `path`.

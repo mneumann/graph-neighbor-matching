@@ -12,7 +12,7 @@ include = ["src/*.rs", "tests/*.rs", "benches/*.rs", "test-helper/Cargo.toml", "
 
 [dependencies]
 nalgebra = "0.13"
-munkres = "0.3"
+munkres = "0.4"
 closed01 = "0.4"
 petgraph = "0.4"
 approx = "0.1"
