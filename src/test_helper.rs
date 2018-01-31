@@ -19,23 +19,31 @@ fn convert_weight(w: Option<&Sexp>) -> Option<f32> {
     }
 }
 
-fn determine_edge_value_range<T>(g: &PetGraph<T, f32, Directed>) -> (f32, f32) {
-    let mut w_min = INFINITY;
-    let mut w_max = NEG_INFINITY;
-    for i in g.raw_edges() {
-        w_min = w_min.min(i.weight);
-        w_max = w_max.max(i.weight);
-    }
-    (w_min, w_max)
+#[derive(Copy, Clone)]
+struct MinMax {
+    min: f32,
+    max: f32,
 }
 
-fn normalize_to_closed01(w: f32, range: (f32, f32)) -> Closed01<f32> {
-    assert!(range.1 >= range.0);
-    let dist = range.1 - range.0;
+fn determine_edge_value_range<T>(g: &PetGraph<T, f32, Directed>) -> MinMax {
+    let mut min_max = MinMax {
+        min: INFINITY,
+        max: NEG_INFINITY,
+    };
+    for i in g.raw_edges() {
+        min_max.min = min_max.min.min(i.weight);
+        min_max.max = min_max.max.max(i.weight);
+    }
+    min_max
+}
+
+fn normalize_to_closed01(w: f32, range: MinMax) -> Closed01<f32> {
+    assert!(range.max >= range.min);
+    let dist = range.max - range.min;
     if dist == 0.0 {
         Closed01::zero()
     } else {
-        Closed01::new((w - range.0) / dist)
+        Closed01::new((w - range.min) / dist)
     }
 }
 
