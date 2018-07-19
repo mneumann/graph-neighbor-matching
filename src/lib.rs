@@ -7,7 +7,6 @@
 ///
 /// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
 
-#[macro_use]
 extern crate approx;
 extern crate closed01;
 extern crate munkres;
@@ -23,6 +22,7 @@ extern crate graph_io_gml;
 #[cfg(test)]
 extern crate test;
 
+use approx::RelativeEq;
 use nalgebra::DMatrix;
 use munkres::{solve_assignment, WeightMatrix};
 use std::cmp;
@@ -193,7 +193,7 @@ where
     }
 
     fn in_eps(&self, eps: f32) -> bool {
-        relative_eq!(self.previous, self.current, epsilon = eps)
+        self.previous.relative_eq(&self.current, eps, f32::default_max_relative())
     }
 
     /// Calculates the next iteration of the similarity matrix (x[k+1]).

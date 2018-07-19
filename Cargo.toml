@@ -11,11 +11,11 @@ exclude = ["/target"]
 include = ["*.gml", "*.rs", "*.toml", "*.md", "LICENSE"]
 
 [dependencies]
-nalgebra = "0.13"
+nalgebra = "0.15.3"
 munkres = "0.4"
 closed01 = "0.4"
 petgraph = "0.4"
-approx = "0.1"
+approx = "0.3.0"
 
 [dev-dependencies]
 
