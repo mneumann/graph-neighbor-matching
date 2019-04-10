@@ -5,19 +5,13 @@
 ///
 /// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
 
-#[macro_use]
-extern crate approx;
-extern crate closed01;
-extern crate munkres;
-extern crate nalgebra;
-extern crate petgraph;
-
 use nalgebra::DMatrix;
 use munkres::{solve_assignment, WeightMatrix};
 use std::cmp;
 use std::mem;
 use closed01::Closed01;
 pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
+use approx::{relative_eq};
 
 pub mod graph;
 mod traits;
