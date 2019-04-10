@@ -48,19 +48,15 @@ fn test_matrix() {
 
 #[test]
 fn test_matrix_iter1() {
-    let a = graph(vec![
-        node(
-            vec![edge(0), edge(0), edge(0)],
-            vec![edge(0), edge(0), edge(0)],
-        ),
-    ]);
+    let a = graph(vec![node(
+        vec![edge(0), edge(0), edge(0)],
+        vec![edge(0), edge(0), edge(0)],
+    )]);
 
-    let b = graph(vec![
-        node(
-            vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
-            vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
-        ),
-    ]);
+    let b = graph(vec![node(
+        vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
+        vec![edge(0), edge(0), edge(0), edge(0), edge(0)],
+    )]);
 
     let mut s = SimilarityMatrix::new(&a, &b, IgnoreNodeColors);
     s.iterate(1, 0.1);

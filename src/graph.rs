@@ -1,11 +1,11 @@
 use crate::traits::{EdgeWeight, Edges, Graph};
 use closed01::Closed01;
-use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
-use petgraph::{Directed, EdgeDirection};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use petgraph::Graph as PetGraph;
+use petgraph::{Directed, EdgeDirection};
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -106,7 +106,8 @@ impl<T: Debug + Clone> OwnedGraph<T> {
 
     pub fn from_petgraph(pg: &PetGraph<T, EdgeWeight, Directed>) -> OwnedGraph<T> {
         OwnedGraph {
-            nodes: pg.node_indices()
+            nodes: pg
+                .node_indices()
                 .map(|i| {
                     Node::new(
                         EdgeList::new(

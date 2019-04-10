@@ -1,17 +1,16 @@
+use approx::relative_eq;
+use closed01::Closed01;
+use munkres::{solve_assignment, WeightMatrix};
 /// A graph similarity score using neighbor matching according to [this paper][1].
 ///
 /// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
 ///      of Graph Nodes by Neighbor Matching"
 ///
 /// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
-
 use nalgebra::DMatrix;
-use munkres::{solve_assignment, WeightMatrix};
 use std::cmp;
 use std::mem;
-use closed01::Closed01;
 pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
-use approx::{relative_eq};
 
 pub mod graph;
 mod traits;
@@ -147,7 +146,8 @@ where
                     .node_color_matching(graph_a.node_value(i), graph_b.node_value(j))
             } else {
                 Closed01::zero()
-            }.get()
+            }
+            .get()
         });
 
         let new_x = DMatrix::<f32>::from_element(
@@ -316,7 +316,8 @@ where
                     // penalize for that in the node similarity measure.
                     Closed01::one()
                 }
-            }.get()
+            }
+            .get()
         };
 
         let mut w = WeightMatrix::from_fn(max_deg, edge_weight_distance);

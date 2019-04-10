@@ -1,8 +1,8 @@
 use closed01::Closed01;
-use std::fmt::Debug;
-use petgraph::Graph as PetGraph;
-use petgraph::Directed;
 use petgraph::graph::NodeIndex;
+use petgraph::Directed;
+use petgraph::Graph as PetGraph;
+use std::fmt::Debug;
 
 pub type EdgeWeight = Closed01<f32>;
 
