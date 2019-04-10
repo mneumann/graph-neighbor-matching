@@ -24,35 +24,44 @@ fn bench_collect_distribute_a(c: &mut Criterion) {
     let g_collect_distribute_3_3 = load_graph("graphs/collect_distribute_3_3.gml");
     let g_collect_distribute_3_3a = load_graph("graphs/collect_distribute_3_3a.gml");
 
-    c.bench_function("score_graphs/collect_distribute_3_3a/79", move |b| {
-        b.iter(|| {
-            // Removing one link -> 79% similarity
-            assert_similarity(79, &g_collect_distribute_3_3, &g_collect_distribute_3_3a);
-        })
-    });
+    c.bench(
+        "score_graphs",
+        Benchmark::new("collect_distribute_3_3a_79", move |b| {
+            b.iter(|| {
+                // Removing one link -> 79% similarity
+                assert_similarity(79, &g_collect_distribute_3_3, &g_collect_distribute_3_3a);
+            });
+        }),
+    );
 }
 
 fn bench_collect_distribute_b(c: &mut Criterion) {
     let g_collect_distribute_3_3 = load_graph("graphs/collect_distribute_3_3.gml");
     let g_collect_distribute_3_3b = load_graph("graphs/collect_distribute_3_3b.gml");
 
-    c.bench_function("score_graphs/collect_distribute_3_3b/64", move |b| {
-        b.iter(|| {
-            // Removing two links -> 64% similarity
-            assert_similarity(64, &g_collect_distribute_3_3, &g_collect_distribute_3_3b);
-        })
-    });
+    c.bench(
+        "score_graphs",
+        Benchmark::new("collect_distribute_3_3b_64", move |b| {
+            b.iter(|| {
+                // removing two links -> 64% similarity
+                assert_similarity(64, &g_collect_distribute_3_3, &g_collect_distribute_3_3b);
+            });
+        }),
+    );
 }
 
 fn bench_skorpion(c: &mut Criterion) {
     let g_skorpion = load_graph("graphs/skorpion.gml");
     let g_skorpion_approx44 = load_graph("graphs/skorpion_approx44.gml");
 
-    c.bench_function("score_graphs/skorpion/44", move |b| {
-        b.iter(|| {
-            assert_similarity(44, &g_skorpion, &g_skorpion_approx44);
-        })
-    });
+    c.bench(
+        "score_graphs",
+        Benchmark::new("skorpion_44", move |b| {
+            b.iter(|| {
+                assert_similarity(44, &g_skorpion, &g_skorpion_approx44);
+            });
+        }),
+    );
 }
 
 fn bench_isomorphic_ffl35(c: &mut Criterion) {
@@ -61,7 +70,7 @@ fn bench_isomorphic_ffl35(c: &mut Criterion) {
 
     c.bench(
         "score_graphs",
-        Benchmark::new("isomorphic_ffl_35/100", move |b| {
+        Benchmark::new("isomorphic_ffl_35_100", move |b| {
             b.iter(|| {
                 assert_eq!(
                     1.0,
@@ -79,7 +88,7 @@ fn bench_isomorphic_ffl100(c: &mut Criterion) {
 
     c.bench(
         "score_graphs",
-        Benchmark::new("isomorphic_ffl_100/100", move |b| {
+        Benchmark::new("isomorphic_ffl_100_100", move |b| {
             b.iter(|| {
                 assert_eq!(
                     1.0,
