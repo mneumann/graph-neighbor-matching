@@ -24,3 +24,7 @@ criterion = "0.2"
 [[bench]]
 name = "score_graphs"
 harness = false
+
+# This section is required to make "cargo bench -- --save-baseline" work
+[lib]
+bench = false
