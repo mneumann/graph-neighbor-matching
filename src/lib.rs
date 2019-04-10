@@ -1,12 +1,13 @@
+//! A graph similarity score using neighbor matching according to [this paper][1].
+//!
+//! [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
+//!      of Graph Nodes by Neighbor Matching"
+//!
+//! TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
+
 use approx::relative_eq;
 use closed01::Closed01;
 use munkres::{solve_assignment, WeightMatrix};
-/// A graph similarity score using neighbor matching according to [this paper][1].
-///
-/// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
-///      of Graph Nodes by Neighbor Matching"
-///
-/// TODO: Introduce EdgeWeight trait to abstract edge weight similarity.
 use nalgebra::DMatrix;
 use std::cmp;
 use std::mem;
