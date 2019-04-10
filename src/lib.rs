@@ -8,7 +8,7 @@
 use approx::relative_eq;
 use closed01::Closed01;
 use munkres::{solve_assignment, WeightMatrix};
-use nalgebra::DMatrix;
+use ndarray::{Array2, FoldWhile, Zip};
 use std::cmp;
 use std::mem;
 pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
@@ -70,7 +70,7 @@ fn similarity_cost(weight: f32) -> f32 {
 /// `n_i` contains the neighborhood of i (either in or out neighbors, not both)
 /// `n_j` contains the neighborhood of j (either in or out neighbors, not both)
 /// `x`   the similarity matrix.
-fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMatrix<f32>) -> Closed01<f32> {
+fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &Array2<f32>) -> Closed01<f32> {
     let max_deg = cmp::max(n_i.num_edges(), n_j.num_edges());
     let min_deg = cmp::min(n_i.num_edges(), n_j.num_edges());
 
@@ -106,6 +106,8 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &DMatrix<f32>) -> Closed01<f32> {
     return Closed01::new(sum / max_deg as f32);
 }
 
+type Matrix = Array2<f32>;
+
 #[derive(Debug)]
 pub struct SimilarityMatrix<'a, F, G, E, N>
 where
@@ -118,9 +120,9 @@ where
     graph_b: &'a G,
     node_color_matching: F,
     // current version of similarity matrix
-    current: DMatrix<f32>,
+    current: Matrix,
     // previous version of similarity matrix
-    previous: DMatrix<f32>,
+    previous: Matrix,
     // current number of iterations
     num_iterations: usize,
 }
@@ -140,7 +142,8 @@ where
         // `x` is the node-similarity matrix.
         // we initialize `x`, so that x[i,j]=1 for all i in A.edges() and j in
         // B.edges().
-        let x = DMatrix::<f32>::from_fn(graph_a.num_nodes(), graph_b.num_nodes(), |i, j| {
+        let shape = (graph_a.num_nodes(), graph_b.num_nodes());
+        let x = Matrix::from_shape_fn(shape, |(i, j)| {
             if graph_a.node_degree(i) > 0 && graph_b.node_degree(j) > 0 {
                 // this is normally set to 1.0 (i.e. without node color matching).
                 node_color_matching
@@ -151,11 +154,7 @@ where
             .get()
         });
 
-        let new_x = DMatrix::<f32>::from_element(
-            graph_a.num_nodes(),
-            graph_b.num_nodes(),
-            Closed01::zero().get(),
-        );
+        let new_x = Matrix::from_elem(shape, Closed01::zero().get());
 
         SimilarityMatrix {
             graph_a: graph_a,
@@ -168,31 +167,33 @@ where
     }
 
     fn in_eps(&self, eps: f32) -> bool {
-        relative_eq!(self.previous, self.current, epsilon = eps)
+        Zip::from(&self.previous)
+            .and(&self.current)
+            .fold_while(true, |all_prev_in_eps, x, y| {
+                if all_prev_in_eps && relative_eq!(x, y, epsilon = eps) {
+                    FoldWhile::Continue(true)
+                } else {
+                    FoldWhile::Done(false)
+                }
+            })
+            .into_inner()
     }
 
     /// Calculates the next iteration of the similarity matrix (x[k+1]).
     pub fn next(&mut self) {
         {
             let x = &self.current;
-            let new_x = &mut self.previous;
-            let shape = x.shape();
-
-            for i in 0..shape.0 {
-                for j in 0..shape.1 {
-                    let scale = self.node_color_matching.node_color_matching(
-                        self.graph_a.node_value(i),
-                        self.graph_b.node_value(j),
-                    );
-                    let in_score =
-                        s_next(self.graph_a.in_edges_of(i), self.graph_b.in_edges_of(j), x);
-                    let out_score = s_next(
-                        self.graph_a.out_edges_of(i),
-                        self.graph_b.out_edges_of(j),
-                        x,
-                    );
-                    new_x[(i, j)] = in_score.average(out_score).mul(scale).get();
-                }
+            for ((i, j), new_x_ij) in self.previous.indexed_iter_mut() {
+                let scale = self
+                    .node_color_matching
+                    .node_color_matching(self.graph_a.node_value(i), self.graph_b.node_value(j));
+                let in_score = s_next(self.graph_a.in_edges_of(i), self.graph_b.in_edges_of(j), x);
+                let out_score = s_next(
+                    self.graph_a.out_edges_of(i),
+                    self.graph_b.out_edges_of(j),
+                    x,
+                );
+                *new_x_ij = in_score.average(out_score).mul(scale).get();
             }
         }
 
@@ -214,7 +215,7 @@ where
         }
     }
 
-    pub fn matrix(&self) -> &DMatrix<f32> {
+    pub fn matrix(&self) -> &Matrix {
         &self.current
     }
 
@@ -223,11 +224,11 @@ where
     }
 
     pub fn min_nodes(&self) -> usize {
-        cmp::min(self.current.nrows(), self.current.ncols())
+        cmp::min(self.current.rows(), self.current.cols())
     }
 
     pub fn max_nodes(&self) -> usize {
-        cmp::max(self.current.nrows(), self.current.ncols())
+        cmp::max(self.current.rows(), self.current.cols())
     }
 
     pub fn optimal_node_assignment(&self) -> Vec<(usize, usize)> {
@@ -374,9 +375,8 @@ where
     pub fn score_average(&self) -> Closed01<f32> {
         let n = self.min_nodes();
         if n > 0 {
-            let items = self.current.as_slice();
-            let sum: f32 = items.iter().fold(0.0, |acc, &v| acc + v);
-            let len = items.len();
+            let sum: f32 = self.current.iter().fold(0.0, |acc, &v| acc + v);
+            let len = self.current.shape().len();
             assert!(len > 0);
             Closed01::new(sum / len as f32)
         } else {
