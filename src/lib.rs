@@ -1,5 +1,3 @@
-#![cfg_attr(test, feature(test))]
-
 /// A graph similarity score using neighbor matching according to [this paper][1].
 ///
 /// [1]: http://arxiv.org/abs/1009.5290 "2010, Mladen Nikolic, Measuring Similarity
@@ -14,15 +12,6 @@ extern crate munkres;
 extern crate nalgebra;
 extern crate petgraph;
 
-#[cfg(test)]
-extern crate asexp;
-
-#[cfg(test)]
-extern crate graph_io_gml;
-
-#[cfg(test)]
-extern crate test;
-
 use nalgebra::DMatrix;
 use munkres::{solve_assignment, WeightMatrix};
 use std::cmp;
@@ -32,15 +21,6 @@ pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
 
 pub mod graph;
 mod traits;
-
-#[cfg(test)]
-mod test_helper;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod benches;
 
 #[derive(Debug, Copy, Clone)]
 pub enum ScoreNorm {
@@ -321,7 +301,6 @@ where
     /// Calculate a similarity measure of outgoing edges of nodes `node_i` of graph A and `node_j`
     /// of graph B.  A score of 1.0 means, the edges weights match up perfectly. 0.0 means, no
     /// similarity.
-
     fn score_outgoing_edge_weights_of(&self, node_i: usize, node_j: usize) -> Closed01<f32> {
         let out_i = self.graph_a.out_edges_of(node_i);
         let out_j = self.graph_b.out_edges_of(node_j);

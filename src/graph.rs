@@ -1,4 +1,4 @@
-use super::traits::{EdgeWeight, Edges, Graph};
+use crate::traits::{EdgeWeight, Edges, Graph};
 use closed01::Closed01;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;

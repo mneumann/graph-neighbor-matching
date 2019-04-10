@@ -1,6 +1,8 @@
-use super::test_helper::{load_graph, score_graphs};
-use super::graph::{Edge, EdgeList, GraphBuilder, Node, OwnedGraph};
-use super::{IgnoreNodeColors, ScoreNorm, SimilarityMatrix};
+mod common;
+
+use common::{load_graph, score_graphs};
+use graph_neighbor_matching::graph::{Edge, EdgeList, GraphBuilder, Node, OwnedGraph};
+use graph_neighbor_matching::{IgnoreNodeColors, ScoreNorm, SimilarityMatrix};
 
 fn edge(i: usize) -> Edge {
     Edge::new_unweighted(i)

@@ -6,18 +6,21 @@ license = "MIT"
 repository = "https://github.com/mneumann/graph-neighbor-matching"
 description = "Graph similarity score using neighbor matching"
 keywords = ["graph", "algorithm", "similarity"]
-
-exclude = ["/target"]
-include = ["*.gml", "*.rs", "*.toml", "*.md", "LICENSE"]
+include = ["graphs/**/*.gml", "**/*.rs", "Cargo.toml", "README.md", "LICENSE"]
+edition = "2018"
 
 [dependencies]
 nalgebra = "0.13"
 munkres = "0.4"
-closed01 = "0.4"
+closed01 = "0.5"
 petgraph = "0.4"
 approx = "0.1"
 
 [dev-dependencies]
-
 asexp = "0.3"
 graph-io-gml = "0.2"
+criterion = "0.2"
+
+[[bench]]
+name = "score_graphs"
+harness = false
