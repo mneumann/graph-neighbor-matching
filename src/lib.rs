@@ -7,7 +7,7 @@
 
 use approx::relative_eq;
 use closed01::Closed01;
-use munkres::{solve_assignment, WeightMatrix};
+use munkres::{solve_assignment, Position, WeightMatrix};
 use ndarray::{Array2, FoldWhile, Zip};
 use std::cmp;
 use std::mem;
@@ -101,7 +101,11 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &Array2<f32>) -> Closed01<f32> {
     let assignment = solve_assignment(&mut w).unwrap();
     assert!(assignment.len() == min_deg);
 
-    let sum: f32 = assignment.iter().fold(0.0, |acc, &ab| acc + x[mapidx(ab)]);
+    let sum: f32 = assignment
+        .iter()
+        .fold(0.0, |acc, &Position { row, column }| {
+            acc + x[mapidx((row, column))]
+        });
 
     return Closed01::new(sum / max_deg as f32);
 }
@@ -231,7 +235,7 @@ where
         cmp::max(self.current.rows(), self.current.cols())
     }
 
-    pub fn optimal_node_assignment(&self) -> Vec<(usize, usize)> {
+    pub fn optimal_node_assignment(&self) -> Vec<Position> {
         let n = self.min_nodes();
         let assignment = if n > 0 {
             let mut w = WeightMatrix::from_fn(n, |ij| similarity_cost(self.current[ij]));
@@ -243,20 +247,24 @@ where
         assignment
     }
 
-    fn score_optimal_sum(&self, node_assignment: Option<&[(usize, usize)]>) -> f32 {
+    fn score_optimal_sum(&self, node_assignment: Option<&[Position]>) -> f32 {
         match node_assignment {
             Some(node_assignment) => {
                 assert!(node_assignment.len() == self.min_nodes());
                 node_assignment
                     .iter()
-                    .fold(0.0, |acc, &ab| acc + self.current[ab])
+                    .fold(0.0, |acc, &Position { row, column }| {
+                        acc + self.current[(row, column)]
+                    })
             }
             None => {
                 let node_assignment = self.optimal_node_assignment();
                 assert!(node_assignment.len() == self.min_nodes());
                 node_assignment
                     .iter()
-                    .fold(0.0, |acc, &ab| acc + self.current[ab])
+                    .fold(0.0, |acc, &Position { row, column }| {
+                        acc + self.current[(row, column)]
+                    })
             }
         }
     }
@@ -268,7 +276,7 @@ where
     /// between the edge-weight differences of all edge pairs.
     pub fn score_outgoing_edge_weights_sum_norm(
         &self,
-        node_assignment: &[(usize, usize)],
+        node_assignment: &[Position],
         norm: ScoreNorm,
     ) -> Closed01<f32> {
         let n = self.min_nodes();
@@ -278,10 +286,17 @@ where
         assert!(node_assignment.len() == n);
 
         // we sum up all edge weight scores
-        let sum: f32 = node_assignment.iter().fold(0.0, |acc, &(node_i, node_j)| {
-            let score_ij = self.score_outgoing_edge_weights_of(node_i, node_j);
-            acc + score_ij.get()
-        });
+        let sum: f32 = node_assignment.iter().fold(
+            0.0,
+            |acc,
+             &Position {
+                 row: node_i,
+                 column: node_j,
+             }| {
+                let score_ij = self.score_outgoing_edge_weights_of(node_i, node_j);
+                acc + score_ij.get()
+            },
+        );
 
         assert!(sum >= 0.0 && sum <= n as f32);
 
@@ -332,7 +347,9 @@ where
         // It's range is from 0.0 (perfect matching) to max_deg*1.0 (bad matching).
         let sum: f32 = assignment
             .iter()
-            .fold(0.0, |acc, &ij| acc + edge_weight_distance(ij));
+            .fold(0.0, |acc, &Position { row, column }| {
+                acc + edge_weight_distance((row, column))
+            });
 
         debug_assert!(sum >= 0.0 && sum <= max_deg as f32);
 
@@ -346,7 +363,7 @@ where
     /// ScoreNorm::MinDegree is used as default in the paper.
     pub fn score_optimal_sum_norm(
         &self,
-        node_assignment: Option<&[(usize, usize)]>,
+        node_assignment: Option<&[Position]>,
         norm: ScoreNorm,
     ) -> Closed01<f32> {
         let n = self.min_nodes();

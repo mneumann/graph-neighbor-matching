@@ -11,7 +11,7 @@ edition = "2018"
 
 [dependencies]
 ndarray = "0.12"
-munkres = "0.4"
+munkres = "0.5"
 closed01 = "0.5"
 petgraph = "0.4"
 approx = "0.3"
