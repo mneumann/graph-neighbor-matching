@@ -36,8 +36,8 @@ fn test_matrix() {
     println!("{:?}", s);
     assert_eq!(2, s.num_iterations());
     let mat = s.matrix();
-    assert_eq!(2, mat.rows());
-    assert_eq!(2, mat.cols());
+    assert_eq!(2, mat.nrows());
+    assert_eq!(2, mat.ncols());
 
     // A and B are isomorphic
     assert_eq!(0.0, mat[(0, 0)]);

@@ -10,7 +10,7 @@ include = ["graphs/**/*.gml", "**/*.rs", "Cargo.toml", "README.md", "LICENSE"]
 edition = "2018"
 
 [dependencies]
-ndarray = "0.12"
+ndarray = "0.13"
 munkres = "0.5"
 closed01 = "0.5"
 petgraph = "0.4"

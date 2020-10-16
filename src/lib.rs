@@ -228,11 +228,11 @@ where
     }
 
     pub fn min_nodes(&self) -> usize {
-        cmp::min(self.current.rows(), self.current.cols())
+        cmp::min(self.current.nrows(), self.current.ncols())
     }
 
     pub fn max_nodes(&self) -> usize {
-        cmp::max(self.current.rows(), self.current.cols())
+        cmp::max(self.current.nrows(), self.current.ncols())
     }
 
     pub fn optimal_node_assignment(&self) -> Vec<Position> {
