@@ -9,7 +9,7 @@ use approx::relative_eq;
 use closed01::Closed01;
 use munkres::{solve_assignment, Position, WeightMatrix};
 use ndarray::{Array2, FoldWhile, Zip};
-pub use node_color_matching::{IgnoreNodeColors, NodeColorMatching};
+pub use node_color_matching::{IgnoreNodeColors, NodeColorMatching, WeightedNodeColors};
 use std::cmp;
 use std::mem;
 pub use traits::{Edges, Graph, NodeColorWeight};
