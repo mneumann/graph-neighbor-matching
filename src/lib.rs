@@ -9,11 +9,13 @@ use approx::relative_eq;
 use closed01::Closed01;
 use munkres::{solve_assignment, Position, WeightMatrix};
 use ndarray::{Array2, FoldWhile, Zip};
+pub use node_color_matching::{IgnoreNodeColors, NodeColorMatching};
 use std::cmp;
 use std::mem;
-pub use traits::{Edges, Graph, NodeColorMatching, NodeColorWeight};
+pub use traits::{Edges, Graph, NodeColorWeight};
 
 pub mod graph;
+mod node_color_matching;
 mod traits;
 
 #[derive(Debug, Copy, Clone)]
@@ -28,30 +30,6 @@ pub enum ScoreNorm {
 impl NodeColorWeight for f32 {
     fn node_color_weight(&self) -> f32 {
         *self
-    }
-}
-
-#[derive(Debug)]
-pub struct IgnoreNodeColors;
-
-impl<T> NodeColorMatching<T> for IgnoreNodeColors {
-    fn node_color_matching(&self, _node_i_value: &T, _node_j_value: &T) -> Closed01<f32> {
-        Closed01::one()
-    }
-}
-
-#[derive(Debug)]
-pub struct WeightedNodeColors;
-
-impl<T: NodeColorWeight> NodeColorMatching<T> for WeightedNodeColors {
-    fn node_color_matching(&self, node_i_value: &T, node_j_value: &T) -> Closed01<f32> {
-        let dist = (node_i_value.node_color_weight() - node_j_value.node_color_weight())
-            .abs()
-            .min(1.0);
-
-        debug_assert!(dist >= 0.0 && dist <= 1.0);
-
-        Closed01::new(dist).inv()
     }
 }
 
