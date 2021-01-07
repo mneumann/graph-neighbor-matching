@@ -3,9 +3,10 @@ use petgraph::graph::NodeIndex;
 use petgraph::Directed;
 use petgraph::Graph as PetGraph;
 
+/// The weight of an edge.
 pub type EdgeWeight = Closed01<f32>;
 
-/// Trait used by the internal algorithm.
+/// Abstract representation of the edges of a node. Used by the algorithm.
 pub trait Edges {
     /// The number of edges
     fn num_edges(&self) -> usize;
@@ -18,9 +19,11 @@ pub trait Edges {
     fn nth_edge_weight(&self, n: usize) -> Option<EdgeWeight>;
 }
 
+/// Abstract representation of a Graph. Used by the algorithm.
 pub trait Graph {
     type EDGE: Edges;
     type NODE: Clone;
+
     fn num_nodes(&self) -> usize;
     fn node_degree(&self, node_idx: usize) -> usize;
     fn node_value(&self, node_idx: usize) -> &Self::NODE;

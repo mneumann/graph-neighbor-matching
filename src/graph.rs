@@ -1,11 +1,7 @@
-use crate::traits::{EdgeWeight, Edges, Graph};
+use crate::graph_traits::*;
 use closed01::Closed01;
-use petgraph::graph::NodeIndex;
-use petgraph::visit::EdgeRef;
-use petgraph::Graph as PetGraph;
-use petgraph::{Directed, EdgeDirection};
-use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
+use petgraph::{graph::NodeIndex, visit::EdgeRef, Directed, EdgeDirection, Graph as PetGraph};
+use std::collections::{btree_map::Entry, BTreeMap};
 use std::fmt::Debug;
 
 #[derive(Debug)]
