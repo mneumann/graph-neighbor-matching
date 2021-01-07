@@ -24,13 +24,13 @@ pub trait Graph {
     fn num_nodes(&self) -> usize;
     fn node_degree(&self, node_idx: usize) -> usize;
     fn node_value(&self, node_idx: usize) -> &Self::NODE;
-    fn in_edges_of<'a>(&'a self, node_idx: usize) -> &'a Self::EDGE;
-    fn out_edges_of<'a>(&'a self, node_idx: usize) -> &'a Self::EDGE;
+    fn in_edges_of(&self, node_idx: usize) -> &Self::EDGE;
+    fn out_edges_of(&self, node_idx: usize) -> &Self::EDGE;
 
     fn to_petgraph(&self) -> PetGraph<Self::NODE, EdgeWeight, Directed> {
-        let mut g = PetGraph::new();
+        let mut graph = PetGraph::new();
         for i in 0..self.num_nodes() {
-            let idx = g.add_node(self.node_value(i).clone());
+            let idx = graph.add_node(self.node_value(i).clone());
             assert!(idx.index() == i);
         }
         for i in 0..self.num_nodes() {
@@ -38,16 +38,16 @@ pub trait Graph {
             for k in 0..in_edges.num_edges() {
                 let j = in_edges.nth_edge(k).unwrap();
                 let w = in_edges.nth_edge_weight(k).unwrap();
-                g.add_edge(NodeIndex::new(j), NodeIndex::new(i), w);
+                graph.add_edge(NodeIndex::new(j), NodeIndex::new(i), w);
             }
             let out_edges = self.out_edges_of(i);
             for k in 0..out_edges.num_edges() {
                 let j = out_edges.nth_edge(k).unwrap();
                 let w = out_edges.nth_edge_weight(k).unwrap();
-                g.add_edge(NodeIndex::new(i), NodeIndex::new(j), w);
+                graph.add_edge(NodeIndex::new(i), NodeIndex::new(j), w);
             }
         }
-        return g;
+        graph
     }
 }
 

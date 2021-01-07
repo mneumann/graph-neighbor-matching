@@ -24,7 +24,7 @@ impl Edge {
         assert!(node_idx <= u32::max_value() as usize);
         Edge {
             pointing_node: node_idx as u32,
-            weight: weight,
+            weight,
         }
     }
 }
@@ -36,7 +36,7 @@ pub struct EdgeList {
 
 impl EdgeList {
     pub fn new(edges: Vec<Edge>) -> EdgeList {
-        EdgeList { edges: edges }
+        EdgeList { edges }
     }
 }
 
@@ -67,9 +67,9 @@ pub struct Node<T: Debug + Clone> {
 impl<T: Debug + Clone> Node<T> {
     pub fn new(in_edges: EdgeList, out_edges: EdgeList, node_value: T) -> Node<T> {
         Node {
-            in_edges: in_edges,
-            out_edges: out_edges,
-            node_value: node_value,
+            in_edges,
+            out_edges,
+            node_value,
         }
     }
 
@@ -97,7 +97,7 @@ pub struct OwnedGraph<T: Debug + Clone> {
 
 impl<T: Debug + Clone> OwnedGraph<T> {
     pub fn new(nodes: Vec<Node<T>>) -> OwnedGraph<T> {
-        OwnedGraph { nodes: nodes }
+        OwnedGraph { nodes }
     }
 
     pub fn nodes(&self) -> &[Node<T>] {
@@ -128,28 +128,32 @@ impl<T: Debug + Clone> OwnedGraph<T> {
     }
 
     pub fn to_petgraph(&self) -> PetGraph<T, EdgeWeight, Directed> {
-        let mut pg = PetGraph::new();
+        let mut graph = PetGraph::new();
 
         for node in self.nodes() {
-            pg.add_node(node.node_value().clone());
+            graph.add_node(node.node_value().clone());
         }
 
         for (source_idx, node) in self.nodes().iter().enumerate() {
             for edge in &node.out_edges.edges {
                 let target_idx = edge.pointing_node as usize;
-                pg.add_edge(
+                graph.add_edge(
                     NodeIndex::new(source_idx),
                     NodeIndex::new(target_idx),
-                    edge.weight.clone(),
+                    edge.weight,
                 );
             }
         }
 
-        return pg;
+        graph
     }
 
     pub fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn push_empty_node(&mut self, node_value: T) -> usize {
@@ -159,7 +163,7 @@ impl<T: Debug + Clone> OwnedGraph<T> {
             EdgeList::new(Vec::new()),
             node_value,
         ));
-        return idx;
+        idx
     }
 }
 
@@ -181,12 +185,12 @@ impl<T: Debug + Clone> Graph for OwnedGraph<T> {
     }
 
     #[inline]
-    fn in_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::EDGE {
+    fn in_edges_of(&self, node_idx: usize) -> &Self::EDGE {
         &&self.nodes[node_idx].in_edges
     }
 
     #[inline]
-    fn out_edges_of<'b>(&'b self, node_idx: usize) -> &'b Self::EDGE {
+    fn out_edges_of(&self, node_idx: usize) -> &Self::EDGE {
         &self.nodes[node_idx].out_edges
     }
 }
@@ -197,12 +201,18 @@ pub struct GraphBuilder<K: Ord, T: Debug + Clone> {
     graph: OwnedGraph<T>,
 }
 
-impl<K: Ord, T: Debug + Clone> GraphBuilder<K, T> {
-    pub fn new() -> GraphBuilder<K, T> {
-        GraphBuilder {
+impl<K: Ord, T: Debug + Clone> Default for GraphBuilder<K, T> {
+    fn default() -> Self {
+        Self {
             node_map: BTreeMap::new(),
             graph: OwnedGraph::new(Vec::new()),
         }
+    }
+}
+
+impl<K: Ord, T: Debug + Clone> GraphBuilder<K, T> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn graph(self) -> OwnedGraph<T> {
@@ -215,10 +225,10 @@ impl<K: Ord, T: Debug + Clone> GraphBuilder<K, T> {
             Entry::Vacant(e) => {
                 let next_id = self.graph.push_empty_node(node_value);
                 e.insert(next_id);
-                return next_id;
+                next_id
             }
             Entry::Occupied(_) => {
-                panic!();
+                panic!("Node already exists");
             }
         }
     }

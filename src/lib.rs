@@ -85,7 +85,7 @@ fn s_next<T: Edges>(n_i: &T, n_j: &T, x: &Array2<f32>) -> Closed01<f32> {
             acc + x[mapidx((row, column))]
         });
 
-    return Closed01::new(sum / max_deg as f32);
+    Closed01::new(sum / max_deg as f32)
 }
 
 type Matrix = Array2<f32>;
@@ -139,9 +139,9 @@ where
         let new_x = Matrix::from_elem(shape, Closed01::zero().get());
 
         SimilarityMatrix {
-            graph_a: graph_a,
-            graph_b: graph_b,
-            node_color_matching: node_color_matching,
+            graph_a,
+            graph_b,
+            node_color_matching,
             current: x,
             previous: new_x,
             num_iterations: 0,
