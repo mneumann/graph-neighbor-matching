@@ -18,8 +18,8 @@ approx = "0.4"
 
 [dev-dependencies]
 asexp = "0.3"
-graph-io-gml = "0.2"
-criterion = "0.2"
+graph-io-gml = "0.3"
+criterion = "0.3"
 
 [[bench]]
 name = "score_graphs"
