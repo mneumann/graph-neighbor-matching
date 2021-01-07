@@ -3,8 +3,7 @@ use approx::relative_eq;
 use closed01::Closed01;
 use munkres::{solve_assignment, Position, WeightMatrix};
 use ndarray::{Array2, FoldWhile, Zip};
-use std::cmp;
-use std::mem;
+use std::{cmp, mem};
 
 type Matrix = Array2<f32>;
 
@@ -101,7 +100,6 @@ where
         self.num_iterations += 1;
     }
 
-    #[inline]
     /// Iteratively calculate the similarity matrix.
     ///
     /// `stop_after_iter`: Stop after iteration (Calculate x(stop_after_iter))
@@ -200,7 +198,7 @@ where
             // Not penalize missing nodes.
             ScoreNorm::MinDegree => Closed01::new(sum / n as f32),
 
-            // To penalize for missing nodes, divide by the maximum number of nodes `m`.
+            // To penalize for missing nodes divide by the maximum number of nodes `m`.
             ScoreNorm::MaxDegree => Closed01::new(sum / m as f32),
         }
     }

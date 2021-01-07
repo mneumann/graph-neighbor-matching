@@ -1,10 +1,15 @@
+//! Traits that represent an abstract graph upon which our algorithm operates.
+
 use closed01::Closed01;
-use petgraph::graph::NodeIndex;
-use petgraph::Directed;
-use petgraph::Graph as PetGraph;
+use petgraph::{graph::NodeIndex, Directed, Graph as PetGraph};
 
 /// The weight of an edge.
 pub type EdgeWeight = Closed01<f32>;
+
+/// The weight of the node color.
+pub trait NodeColorWeight {
+    fn node_color_weight(&self) -> f32;
+}
 
 /// Abstract representation of the edges of a node. Used by the algorithm.
 pub trait Edges {
@@ -52,8 +57,4 @@ pub trait Graph {
         }
         graph
     }
-}
-
-pub trait NodeColorWeight {
-    fn node_color_weight(&self) -> f32;
 }

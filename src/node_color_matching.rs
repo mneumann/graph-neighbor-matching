@@ -2,6 +2,11 @@ use crate::NodeColorWeight;
 use closed01::Closed01;
 use std::fmt::Debug;
 
+/// Describes the closeness of two nodes based on their colors. The color can be thought of as a
+/// node type. For example if you have a graph with nodes of type A and B which represent
+/// completely different things, you'd assign them a `node_color_matching` value of 0.0. This will
+/// tell our algorithm not to try to match these two nodes and their edges.
+///
 pub trait NodeColorMatching<T>: Debug {
     /// Determines how close or distant two nodes with node weights `node_value_i` of graph A and
     /// `node_value_j` of graph B are. If they have different colors, this method could return 0.0
@@ -12,8 +17,8 @@ pub trait NodeColorMatching<T>: Debug {
     fn node_color_matching(&self, node_value_i: &T, node_value_j: &T) -> Closed01<f32>;
 }
 
-#[derive(Debug)]
 /// Use `IgnoreNodeColors` to ignore node colors.
+#[derive(Debug)]
 pub struct IgnoreNodeColors;
 
 impl<T> NodeColorMatching<T> for IgnoreNodeColors {
@@ -22,6 +27,8 @@ impl<T> NodeColorMatching<T> for IgnoreNodeColors {
     }
 }
 
+/// Use `WeightedNodeColors` to use the distance of both nodes `node_color_weight` as
+/// a measure of the similarity between these nodes.
 #[derive(Debug)]
 pub struct WeightedNodeColors;
 
